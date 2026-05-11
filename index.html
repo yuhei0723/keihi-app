@@ -1248,7 +1248,10 @@ function dlShuchoPDF() {
     ? sectionC.map((it,i) => ROW(`C${i+1}`, it.date.replace(/-/g,'/'), it.amount, it.cat, it.note)).join('')
     : EMPTY();
 
-  // ヘッダー共通HTML
+  // 期間：出張なしの場合は申請日を表示
+  const periodStr = (tStart && tEnd) ? `${tStart.replace(/-/g,'/')}〜${tEnd.replace(/-/g,'/')}` : (applyDate ? applyDate.replace(/-/g,'/') : '—');
+
+  // ヘッダー共通HTML（各ページ先頭に表示）
   const headerHtml = `
   <div style="text-align:right;font-size:9pt;margin-bottom:3mm;">${af}</div>
   <div style="text-align:center;font-size:18pt;font-weight:bold;letter-spacing:0.3em;margin-bottom:5mm;">経　費　明　細　書</div>
@@ -1260,7 +1263,7 @@ function dlShuchoPDF() {
     </colgroup>
     <tr style="height:10mm;">
       <td style="border:1px solid #aaa;background:#f0f0f0;font-weight:bold;padding:2mm 3mm;text-align:center;">期間</td>
-      <td style="border:1px solid #aaa;padding:2mm 3mm;">${period}</td>
+      <td style="border:1px solid #aaa;padding:2mm 3mm;">${periodStr}</td>
       <td style="border:1px solid #aaa;background:#f0f0f0;font-weight:bold;padding:2mm 3mm;text-align:center;">氏名</td>
       <td style="border:1px solid #aaa;padding:2mm 3mm;">${name}</td>
       <td style="border:1px solid #aaa;background:#f0f0f0;font-weight:bold;padding:2mm 3mm;text-align:center;">所属</td>
@@ -1278,35 +1281,47 @@ function dlShuchoPDF() {
     </tr>
   </table>`;
 
-  // セクションごとに個別divに分割（ページ境目をセクション単位にする）
+  // 1ページあたりの最大行数（ヘッダーあり：8行、ヘッダーなし：18行）
+  const MAX_ROWS_FIRST = 8;
+  const MAX_ROWS_OTHER = 18;
+
+  // セクションを行数に基づいてページに割り付ける
+  const makeTable = (label, rows, subtotal) =>
+    `<table style="width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:4mm;">${COLGROUP}${SH(label)}${rows}${subtotal}</table>`;
+
+  // 各セクションの定義
+  const allSections = [];
+  if (nittou > 0) allSections.push({ label:'日当', rows: nittouRows, subtotal: SUBTOTAL(nittou,'日当'), count: 1 });
+  allSections.push({ label:'A　出張費（交通費・宿泊費）', rows: aRows, subtotal: SUBTOTAL(trvAmt,'A'), count: Math.max(sectionA.length, 1) });
+  allSections.push({ label:'B　交際費（会食・接待）', rows: bRows, subtotal: SUBTOTAL(kosaiAmt,'B'), count: Math.max(sectionB.length, 1) });
+  allSections.push({ label:'C　その他経費', rows: cRows, subtotal: SUBTOTAL(sonotaAmt,'C'), count: Math.max(sectionC.length, 1) });
+
+  // ページに割り付け
   const sections = [];
+  let curPage = { isFirst: true, tables: [], rowCount: 0 };
+  const maxRows = (isFirst) => isFirst ? MAX_ROWS_FIRST : MAX_ROWS_OTHER;
 
-  // 1ページ目：ヘッダー＋できるだけ多くのセクション
-  let page1 = `<table style="width:100%;border-collapse:collapse;font-size:8.5pt;">${COLGROUP}`;
-  if (nittou > 0) page1 += `${SH('日当')}${nittouRows}${SUBTOTAL(nittou, '日当')}${GAP()}`;
-  page1 += `${SH('A　出張費（交通費・宿泊費）')}${aRows}${SUBTOTAL(trvAmt, 'A')}</table>`;
-  sections.push({ isFirst: true, body: page1 });
-
-  // B・Cが空でなければセクション追加
-  const bSection = `<table style="width:100%;border-collapse:collapse;font-size:8.5pt;">${COLGROUP}${SH('B　交際費（会食・接待）')}${bRows}${SUBTOTAL(kosaiAmt, 'B')}</table>`;
-  const cSection = `<table style="width:100%;border-collapse:collapse;font-size:8.5pt;">${COLGROUP}${SH('C　その他経費')}${cRows}${SUBTOTAL(sonotaAmt, 'C')}</table>`;
-
-  // B・Cは行数に応じて同じページか別ページか判断（20行超なら分割）
-  const bLen = sectionB.length;
-  const cLen = sectionC.length;
-  if (bLen + cLen <= 15) {
-    // B・Cをまとめて1ページ
-    sections.push({ isFirst: false, body: bSection + '<div style="height:6mm;"></div>' + cSection });
-  } else {
-    sections.push({ isFirst: false, body: bSection });
-    sections.push({ isFirst: false, body: cSection });
+  for (const sec of allSections) {
+    const limit = maxRows(curPage.isFirst);
+    if (curPage.rowCount > 0 && curPage.rowCount + sec.count > limit) {
+      // 現ページを確定して新ページへ
+      sections.push(curPage);
+      curPage = { isFirst: false, tables: [], rowCount: 0 };
+    }
+    curPage.tables.push(makeTable(sec.label, sec.rows, sec.subtotal));
+    curPage.rowCount += sec.count;
   }
+  if (curPage.tables.length > 0) sections.push(curPage);
 
+  const totalPages = sections.length;
   const html = `<div id="shutcho-pdf-root" style="width:190mm;background:#fff;">
   ${sections.map((s, i) => `
     <div class="pdf-section" style="width:190mm;padding:10mm 12mm;box-sizing:border-box;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:9pt;color:#000;background:#fff;">
-      ${s.isFirst ? headerHtml : `<div style="font-size:8pt;color:#888;text-align:right;margin-bottom:3mm;">経費明細書　${name}（${af}）　${i+1}/${sections.length}ページ</div>`}
-      ${s.body}
+      ${s.isFirst
+        ? headerHtml
+        : `<div style="font-size:8pt;color:#888;text-align:right;margin-bottom:3mm;">経費明細書　${name}（${periodStr}）　${i+1}/${totalPages}ページ</div>`
+      }
+      ${s.tables.join('')}
     </div>
   `).join('')}
 </div>`;
