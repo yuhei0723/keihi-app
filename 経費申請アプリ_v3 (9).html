@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>経費精算アプリ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+:root {
+  --navy: #0f2744;
+  --blue: #1a5fb4;
+  --blue-lt: #eef4fd;
+  --accent: #e5a50a;
+  --green: #26a269;
+  --green-lt: #d8f5e4;
+  --red: #c01c28;
+  --orange: #e66100;
+  --bg: #f2f5fb;
+  --surface: #ffffff;
+  --surface2: #f0f4fa;
+  --border: #dde3ed;
+  --text: #1a1f2e;
+  --text2: #4a5568;
+  --text3: #8a95a8;
+  --shadow: 0 2px 12px rgba(15,39,68,0.09);
+  --shadow-md: 0 4px 20px rgba(15,39,68,0.13);
+  --r: 10px; --r-sm: 6px;
+  --sidebar: 260px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);font-size:16px;line-height:1.7;}
+.app{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:var(--sidebar);background:var(--navy);display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar-logo{padding:16px 14px 12px;}
+.logo-mark{display:flex;align-items:center;gap:8px;}
+.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:var(--navy);}
+.logo-text{color:#fff;font-weight:800;font-size:16px;}
+.logo-sub{color:rgba(255,255,255,0.4);font-size:11px;}
+.sidebar-nav{flex:1;padding:6px 8px;overflow-y:auto;}
+.nav-label{color:rgba(255,255,255,0.35);font-size:13px;font-weight:700;letter-spacing:0.1em;padding:9px 9px 3px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:6px;color:rgba(255,255,255,0.6);cursor:pointer;transition:all 0.15s;font-size:14px;font-weight:500;margin-bottom:2px;}
+.nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
+.nav-item.active{background:rgba(255,255,255,0.15);color:#fff;font-weight:700;}
+.nav-icon{font-size:18px;width:22px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--accent);color:var(--navy);font-size:12px;font-weight:800;padding:2px 7px;border-radius:20px;}
+.nav-badge.new{background:#26a269;color:#fff;}
+.sidebar-user{padding:10px 12px;border-top:1px solid rgba(255,255,255,0.1);}
+.user-row{display:flex;align-items:center;gap:7px;}
+.user-av{width:26px;height:26px;background:var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{color:#fff;font-size:14px;font-weight:600;}
+.user-dept{color:rgba(255,255,255,0.4);font-size:12px;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 18px;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.topbar-title{font-size:18px;font-weight:700;color:var(--navy);}
+.content{flex:1;overflow-y:auto;padding:18px;padding-bottom:60px;}
+.screen{display:none;animation:fadeIn 0.2s ease;}
+.screen.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+/* Flow bar */
+.flow-bar{display:flex;align-items:center;margin-bottom:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px;overflow:hidden;}
+.flow-step{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 4px;border-radius:7px;font-size:13px;font-weight:500;color:var(--text3);}
+.flow-step.done{color:var(--green);font-weight:600;}
+.flow-step.active{background:var(--navy);color:#fff;font-weight:700;}
+.flow-step .sn{width:20px;height:20px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.flow-step.done .sn{background:var(--green);color:#fff;}
+.flow-step.active .sn{background:rgba(255,255,255,0.25);color:#fff;}
+.flow-arrow{color:var(--border);font-size:12px;flex-shrink:0;padding:0 1px;}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;box-shadow:var(--shadow);}
+.card-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);}
+.card-title{font-size:14px;font-weight:700;color:var(--navy);}
+.card-body{padding:16px;}
+
+/* Forms */
+.fg{margin-bottom:12px;}
+.fl{font-size:14px;font-weight:600;color:var(--text2);margin-bottom:5px;display:block;}
+.fl .req{color:var(--red);margin-left:2px;}
+.fc{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 11px;font-size:15px;font-family:'Noto Sans JP',sans-serif;color:var(--text);background:var(--surface);transition:border 0.15s;}
+.fc:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,95,180,0.12);}
+.gr2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.gr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.gr4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:var(--r-sm);border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:'Noto Sans JP',sans-serif;transition:all 0.15s;}
+.btn:disabled{opacity:0.45;cursor:not-allowed;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover:not(:disabled){background:#1451a0;}
+.btn-accent{background:var(--accent);color:var(--navy);}
+.btn-accent:hover{background:#d4960a;}
+.btn-secondary{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--border);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-lg{padding:12px 24px;font-size:16px;}
+.btn-sm{padding:6px 12px;font-size:13px;}
+.btn-xs{padding:4px 8px;font-size:11px;}
+
+/* Alerts */
+.alert{display:flex;gap:7px;padding:11px 14px;border-radius:var(--r-sm);font-size:14px;margin-bottom:12px;}
+.alert-info{background:#eef4fd;border:1px solid #b6d0f5;color:var(--blue);}
+.alert-success{background:var(--green-lt);border:1px solid #a2d9b9;color:#176b3a;}
+.alert-warn{background:#fff8e6;border:1px solid #f0d080;color:#7a5200;}
+.alert-icon{font-size:14px;flex-shrink:0;margin-top:1px;}
+
+/* Toggle switch */
+.toggle-wrap{display:flex;align-items:center;gap:10px;}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:24px;cursor:pointer;transition:0.2s;}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:0.2s;box-shadow:0 1px 4px rgba(0,0,0,.2);}
+input:checked + .toggle-slider{background:var(--blue);}
+input:checked + .toggle-slider:before{transform:translateX(20px);}
+.toggle-label{font-size:13px;font-weight:600;color:var(--text2);}
+
+/* Misc */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+.badge-ok{background:var(--green-lt);color:#176b3a;}
+.badge-ent{background:#fff8e6;color:#7a5200;}
+.badge-trv{background:var(--blue-lt);color:var(--blue);}
+.chip{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600;}
+.chip-blue{background:var(--blue-lt);color:var(--blue);}
+.chip-amber{background:#fff8e6;color:#7a5200;}
+.chip-green{background:var(--green-lt);color:#176b3a;}
+.divider{height:1px;background:var(--border);margin:12px 0;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+.text-right{text-align:right;}
+h2.ttl{font-size:20px;font-weight:800;color:var(--navy);margin-bottom:5px;}
+p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
+.screen-label{display:inline-flex;align-items:center;gap:5px;background:var(--navy);color:rgba(255,255,255,0.8);font-size:11px;font-weight:700;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;margin-bottom:9px;}
+
+/* Receipt rows */
+.status-saved   { background:#f0f0f0; color:#555; border:1px solid #ccc; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.status-printed { background:#e8f4fd; color:#1565c0; border:1px solid #90caf9; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.status-settled { background:#e8f5e9; color:#2e7d32; border:1px solid #81c784; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.status-select  { font-size:12px; padding:3px 7px; border:1px solid var(--border); border-radius:6px; background:var(--surface); cursor:pointer; }
+.receipt-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;position:relative;transition:box-shadow 0.15s;}
+.receipt-row:hover{box-shadow:var(--shadow-md);}
+.receipt-row.is-ent{border-left:3px solid var(--accent);}
+.receipt-row.is-trv{border-left:3px solid var(--blue);}
+.receipt-row-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.row-num{width:28px;height:28px;background:var(--navy);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.row-type{font-size:13px;font-weight:700;}
+.row-del{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:2px 5px;border-radius:4px;transition:all 0.15s;}
+.row-del:hover{color:var(--red);background:#fde8e6;}
+
+/* ent-detail sub-section */
+.ent-detail{background:var(--blue-lt);border:1px solid #b6d0f5;border-radius:var(--r-sm);padding:10px 12px;margin-top:10px;}
+.ent-detail-title{font-size:12px;font-weight:700;color:var(--blue);margin-bottom:10px;}
+
+/* Summary box */
+.summary-box{background:var(--navy);border-radius:var(--r);padding:16px 20px;color:#fff;}
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:14px;border-bottom:1px solid rgba(255,255,255,0.1);}
+.sum-row:last-child{border-bottom:none;}
+.sum-row.total{font-size:18px;font-weight:800;padding-top:12px;margin-top:5px;}
+.sum-label{color:rgba(255,255,255,0.7);}
+.sum-val{font-family:'IBM Plex Mono',monospace;font-weight:700;}
+.sum-val.accent{color:#f0c040;}
+
+/* Print preview */
+.pp{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);}
+.pp-head{background:var(--navy);padding:12px 16px;display:flex;justify-content:space-between;align-items:flex-end;}
+.pp-title{color:#fff;font-size:15px;font-weight:800;}
+.pp-sub{color:rgba(255,255,255,0.5);font-size:11px;margin-top:2px;}
+.pp-meta{text-align:right;color:rgba(255,255,255,0.6);font-size:12px;line-height:1.8;}
+.pp-body{padding:12px 16px;}
+.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+.data-table th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:700;color:var(--navy);font-size:13px;border-bottom:2px solid var(--border);}
+.data-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">¥</div>
+      <div><div class="logo-text">ExpenseFlow</div><div class="logo-sub">経費申請システム</div></div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">メニュー</div>
+    <div class="nav-item" onclick="go('home')"><span class="nav-icon">🏠</span> ホーム</div>
+    <div class="nav-label">新規申請</div>
+    <div class="nav-item active" onclick="goNewApplication()"><span class="nav-icon">✏️</span> 新規申請入力<span class="nav-badge new">NEW</span></div>
+    <div class="nav-label">帳票</div>
+    <div class="nav-item" onclick="go('report')"><span class="nav-icon">🖨️</span> 帳票出力</div>
+    <div class="nav-item" id="nav-saved" onclick="go('saved')"><span class="nav-icon">📂</span> 保存済み申請</div>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-row">
+      <div class="user-av" id="sidebar-av">—</div>
+      <div style="flex:1;min-width:0;">
+        <div class="user-name" id="sidebar-name">未ログイン</div>
+        <div class="user-dept" id="sidebar-role">十勝発信事業部</div>
+      </div>
+    </div>
+    <button onclick="doLogout()" style="margin-top:8px;width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);border-radius:6px;padding:5px;font-size:12px;cursor:pointer;">ログアウト</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">新規申請入力</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="resetAll()">🔄 リセット</button>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- ══ ログイン ══ -->
+    <div class="screen active" id="screen-login">
+      <div style="max-width:400px;margin:60px auto 0;">
+        <div style="text-align:center;margin-bottom:28px;">
+          <div style="font-size:36px;margin-bottom:8px;">💴</div>
+          <h2 class="ttl" style="font-size:22px;text-align:center;">ExpenseFlow</h2>
+          <p class="desc" style="text-align:center;">十勝発信事業部 経費申請システム</p>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">🔑 ログイン</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+            <div class="fg">
+              <label class="fl">お名前<span class="req">*</span></label>
+              <select id="login-name" class="fc">
+                <option value="">選択してください</option>
+                <option>牛膓　健司</option>
+                <option>齋藤　祐平</option>
+                <option>南岡　恭介</option>
+                <option>田口　広河</option>
+                <option>伊藤　博和</option>
+                <option>生天目　知弘</option>
+              </select>
+            </div>
+            <div class="fg" id="admin-pass-wrap" style="display:none;">
+              <label class="fl">管理者パスワード</label>
+              <input type="password" id="login-admin-pass" class="fc" placeholder="管理者の方はパスワードを入力">
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+              <input type="checkbox" id="login-is-admin" onchange="document.getElementById('admin-pass-wrap').style.display=this.checked?'block':'none'">
+              管理者としてログイン
+            </label>
+            <button class="btn btn-primary btn-lg" style="justify-content:center;" onclick="doLogin()">ログイン →</button>
+            <div id="login-error" style="color:var(--red);font-size:13px;display:none;text-align:center;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STEP 1: 基本情報 ══ -->
+    <div class="screen active" id="screen-step1">
+      <div class="screen-label">📋 STEP 1 — 基本情報</div>
+      <div class="flow-bar">
+        <div class="flow-step active"><span class="sn">1</span> 基本情報</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step"><span class="sn">2</span> 領収書入力</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step"><span class="sn">3</span> 確認・合計</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step"><span class="sn">4</span> 帳票出力</div>
+      </div>
+      <h2 class="ttl">基本情報を入力</h2>
+      <p class="desc">申請者情報と出張の有無を入力してください。出張がない場合（来客会食等）はトグルをOFFのままにしてください。</p>
+
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:16px;">
+        <div>
+          <!-- 申請者情報 -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">👤 申請者情報</span></div>
+            <div class="card-body">
+              <div class="gr2">
+                <div class="fg"><label class="fl">所属</label>
+                  <input type="text" id="s1-dept" class="fc" value="十勝発信事業部" readonly style="background:var(--surface2);color:var(--text2);font-weight:600;"></div>
+                <div class="fg"><label class="fl">氏名<span class="req">*</span></label>
+                  <select id="s1-name" class="fc">
+                    <option value="">— 選択してください —</option>
+                    <option>牛膓　健司</option>
+                    <option>齋藤　祐平</option>
+                    <option>南岡　恭介</option>
+                    <option>田口　広河</option>
+                    <option>伊藤　博和</option>
+                    <option>生天目　知弘</option>
+                  </select></div>
+                <div class="fg"><label class="fl">申請日<span class="req">*</span></label>
+                  <input type="date" id="s1-apply-date" class="fc"></div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- 出張トグル -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">✈️ 出張の有無</span>
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="shutcho-toggle" onchange="toggleShutcho()"><span class="toggle-slider"></span></label>
+                <span class="toggle-label" id="toggle-label">出張なし（交際費・一般経費のみ）</span>
+              </div>
+            </div>
+            <div class="card-body" id="shutcho-section" style="display:none;">
+              <div class="gr3">
+                <div class="fg"><label class="fl">出張開始日<span class="req">*</span></label>
+                  <input type="date" id="s1-start" class="fc" oninput="calcEndDate();calcAllowance()"></div>
+                <div class="fg"><label class="fl">泊数<span class="req">*</span></label>
+                  <select id="s1-nights" class="fc" onchange="calcEndDate();calcAllowance()">
+                    <option value="0">日帰り（0泊）</option><option value="1" selected>1泊2日</option><option value="2">2泊3日</option><option value="3">3泊4日</option><option value="4">4泊5日</option><option value="5">5泊6日</option>
+                  </select></div>
+                <div class="fg"><label class="fl">出張終了日（自動）</label>
+                  <input type="date" id="s1-end" class="fc" readonly style="background:var(--surface2);color:var(--text2);"></div>
+              </div>
+              <div class="gr2" style="margin-bottom:0;">
+                <div class="fg" style="margin-bottom:0;"><label class="fl">出張先<span class="req">*</span></label>
+                  <input type="text" id="s1-dest" class="fc" placeholder="例：帯広市内、東京都内" oninput="calcAllowance()">
+                  <div style="margin-top:4px;"><span id="region-chip" class="chip chip-blue" style="font-size:9px;">出張先を入力すると日当を自動計算します</span></div>
+                </div>
+                <div class="fg" style="margin-bottom:0;"><label class="fl">出張目的<span class="req">*</span></label>
+                  <input type="text" id="s1-purpose" class="fc" placeholder="例：B社 製品デモ・商談"></div>
+              </div>
+
+              <!-- 日当計算結果 -->
+              <div id="allowance-result" style="display:none;margin-top:12px;background:var(--green-lt);border:1px solid #a2d9b9;border-radius:var(--r-sm);padding:10px 14px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <div style="font-size:10px;color:#176b3a;font-weight:600;margin-bottom:2px;">💴 日当（自動計算）</div>
+                    <div style="font-size:10px;color:#176b3a;" id="allowance-desc"></div>
+                  </div>
+                  <div style="font-size:18px;font-weight:800;color:#176b3a;font-family:'IBM Plex Mono',monospace;" id="allowance-amt">0円</div>
+                </div>
+                <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <span style="font-size:10px;color:#176b3a;">手動訂正：</span>
+                  <select id="rate-override" class="fc" style="width:auto;font-size:10px;padding:2px 6px;" onchange="calcAllowance()">
+                    <option value="auto">自動（規程どおり）</option>
+                    <option value="6000">6,000円/日（北海道外）</option>
+                    <option value="5000">5,000円/日（北海道内）</option>
+                    <option value="0">0円（日当なし）</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右：ガイド -->
+        <div>
+          <div class="card" style="border-color:#b6d0f5;">
+            <div class="card-header" style="background:#eef4fd;"><span class="card-title">📖 入力ガイド</span></div>
+            <div class="card-body" style="font-size:11px;line-height:1.8;">
+              <div style="margin-bottom:10px;"><span class="badge badge-ent" style="margin-right:6px;">🍽️ 交際費</span>来客会食・接待など<br>→ <strong>交際費精算書</strong>が出力されます</div>
+              <div class="divider" style="margin:8px 0;"></div>
+              <div style="margin-bottom:10px;"><span class="badge badge-trv" style="margin-right:6px;">✈️ 出張費</span>交通費・宿泊費など<br>→ <strong>経費明細書</strong>が出力されます</div>
+              <div class="divider" style="margin:8px 0;"></div>
+              <div style="font-size:10px;color:var(--text3);">✅ 出張中に会食があった場合は<br>　出張ありON＋交際費の領収書も入力<br>→ 両方の帳票が自動で作成されます</div>
+            </div>
+          </div>
+          <div class="card" style="border-color:#a2d9b9;">
+            <div class="card-header" style="background:#f0faf5;"><span class="card-title">📋 日当規程</span></div>
+            <div class="card-body">
+              <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                <tr><td style="padding:5px 7px;border:1px solid var(--border);font-weight:600;background:var(--surface2);">北海道内</td><td style="padding:5px 7px;border:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-weight:700;">¥5,000 / 日</td></tr>
+                <tr><td style="padding:5px 7px;border:1px solid var(--border);font-weight:600;background:var(--surface2);">北海道外</td><td style="padding:5px 7px;border:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-weight:700;">¥6,000 / 日</td></tr>
+              </table>
+              <div style="font-size:9px;color:var(--text3);margin-top:6px;">帯広・札幌・旭川・函館・釧路等が含まれる場合は北海道内と判定</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+        <button class="btn btn-primary btn-lg" onclick="goStep2()">次へ：領収書を入力 →</button>
+      </div>
+    </div>
+
+    <!-- ══ STEP 2: 領収書入力 ══ -->
+    <div class="screen" id="screen-step2">
+      <div class="screen-label">🧾 STEP 2 — 領収書入力</div>
+      <div class="flow-bar">
+        <div class="flow-step done"><span class="sn">1</span> 基本情報</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step active"><span class="sn">2</span> 領収書入力</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step"><span class="sn">3</span> 確認・合計</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step"><span class="sn">4</span> 帳票出力</div>
+      </div>
+      <h2 class="ttl">領収書を入力</h2>
+      <p class="desc">手元の領収書を1枚ずつ入力してください。区分を選ぶと自動で帳票に振り分けられます。</p>
+
+      <div id="receipt-list"></div>
+
+      <button class="btn btn-secondary" onclick="addReceipt()" style="width:100%;justify-content:center;padding:12px;border-style:dashed;">
+        ＋ 領収書を追加
+      </button>
+
+      <div style="display:flex;justify-content:space-between;margin-top:16px;">
+        <button class="btn btn-secondary" onclick="go('step1')">← 基本情報に戻る</button>
+        <button class="btn btn-primary btn-lg" onclick="goStep3()">次へ：確認・合計 →</button>
+      </div>
+    </div>
+
+    <!-- ══ STEP 3: 確認・合計 ══ -->
+    <div class="screen" id="screen-step3">
+      <div class="screen-label">✅ STEP 3 — 確認・合計</div>
+      <div class="flow-bar">
+        <div class="flow-step done"><span class="sn">1</span> 基本情報</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step done"><span class="sn">2</span> 領収書入力</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step active"><span class="sn">3</span> 確認・合計</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step"><span class="sn">4</span> 帳票出力</div>
+      </div>
+      <h2 class="ttl">内容確認・合計</h2>
+      <p class="desc">入力内容を確認してください。問題なければ帳票を出力します。</p>
+
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;">
+        <div>
+          <!-- 振り分け一覧 -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">📄 振り分け一覧</span></div>
+            <div class="card-body" style="padding:0;">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>日付</th><th>店舗名・内容</th><th>区分</th><th style="text-align:right;">金額</th><th>転記先</th></tr></thead>
+                <tbody id="confirm-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右：合計 -->
+        <div>
+          <div class="summary-box" id="summary-box"></div>
+          <!-- ファイル名 + 保存ボタン -->
+          <div class="card" style="margin-top:12px;border-color:#b6d0f5;">
+            <div class="card-header" style="background:#eef4fd;"><span class="card-title">💾 確定・保存</span></div>
+            <div class="card-body">
+              <label class="fl" style="margin-bottom:4px;">申請ファイル名<span class="req">*</span></label>
+              <input type="text" id="s3-filename" class="fc" placeholder="例：2026年3月_齋藤_帯広出張" style="margin-bottom:10px;">
+              <div id="step3-btns" style="display:flex;flex-direction:column;gap:8px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-start;margin-top:16px;">
+        <button class="btn btn-secondary" onclick="go('step2')">← 領収書入力に戻る</button>
+      </div>
+    </div>
+
+    <!-- ══ STEP 4: 帳票出力 ══ -->
+    <div class="screen" id="screen-report">
+      <div class="screen-label">🖨️ STEP 4 — 帳票出力</div>
+      <div class="flow-bar">
+        <div class="flow-step done"><span class="sn">1</span> 基本情報</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step done"><span class="sn">2</span> 領収書入力</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step done"><span class="sn">3</span> 確認・合計</div>
+        <div class="flow-arrow">›</div>
+        <div class="flow-step active"><span class="sn">4</span> 帳票出力</div>
+      </div>
+      <div class="alert alert-success"><span class="alert-icon">🎉</span><div><strong>入力完了！</strong>　帳票をWordでダウンロードして経理へご提出ください。</div></div>
+      <div id="report-area" style="display:grid;gap:14px;"></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-size:12px;font-weight:700;color:var(--navy);">📋 今回の申請サマリー</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px;" id="rpt-summary"></div></div>
+        <div style="display:flex;gap:7px;" id="rpt-dl-btns"></div>
+      </div>
+
+      <!-- ホームへ戻るフッター -->
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;padding:16px;background:var(--green-lt);border:1px solid #a2d9b9;border-radius:var(--r);">
+        <span style="font-size:14px;color:#176b3a;font-weight:600;display:flex;align-items:center;gap:6px;">✅ 申請が完了しました。次の申請を行う場合はホームへ戻ってください。</span>
+        <button class="btn btn-primary" onclick="goHomeAndReset()" style="flex-shrink:0;">🏠 ホームへ戻る</button>
+      </div>
+    </div>
+
+
+    <!-- ══ 保存済み申請一覧 ══ -->
+    <div class="screen" id="screen-saved">
+      <div class="screen-label">📂 保存済み申請</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <div>
+          <h2 class="ttl" style="margin-bottom:2px;">保存済み申請一覧</h2>
+          <p class="desc" style="margin-bottom:0;">確定済みの申請を確認・編集・帳票出力できます。</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div id="sync-status" style="font-size:11px;color:#176b3a;background:var(--green-lt);border:1px solid #a2d9b9;padding:4px 10px;border-radius:6px;display:none;"></div>
+          <button class="btn btn-secondary btn-sm" onclick="syncFromGAS()">🔄 最新データを取得</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportJSON()">📤 バックアップ出力</button>
+        </div>
+      </div>
+      <div id="saved-list-container">
+        <div style="text-align:center;color:var(--text3);padding:30px;">保存された申請はありません</div>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <div class="screen" id="screen-home">
+      <div class="screen-label">🏠 ホーム</div>
+      <h2 class="ttl" id="home-greeting">こんにちは 👋</h2>
+      <p class="desc">十勝発信事業部 / 経費申請システム</p>
+      <div class="card">
+        <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button class="btn btn-primary btn-lg" style="justify-content:center;flex-direction:column;height:70px;" onclick="goNewApplication()"><span style="font-size:20px;margin-bottom:3px;">✏️</span>新規申請を入力する</button>
+          <button class="btn btn-secondary btn-lg" style="justify-content:center;flex-direction:column;height:70px;" onclick="go('saved');renderSavedList();"><span style="font-size:20px;margin-bottom:3px;">📂</span>保存済みを開く</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// GAS 設定
+// ══════════════════════════════════════════════
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz9KTJeZ5Nb-19qaS7hLHm__RKdjBn4yj-9Gn1hgDgAEvoUjRo6qqQodbpffbEpbaY_/exec';
+const ADMIN_PASSWORD = 'admin1234'; // GAS側と同じパスワードに変更してください
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let receipts = []; // {id, date, store, amount, cat, address, participants, relation, totalPax, ourPax, notes}
+let receiptIdSeq = 0;
+let allowanceAmt = 0;
+let savedApplications = []; // 保存済み申請リスト
+let editingAppId = null;    // 編集中の申請ID（nullなら新規）
+let currentUser = null;     // ログイン中のユーザー名
+let isAdmin = false;        // 管理者フラグ
+let isSyncing = false;      // 同期中フラグ
+
+const CATS = ['交通費','宿泊費','交際費（会食）','その他経費'];
+const CAT_ICON = {'交通費':'🚄','宿泊費':'🏨','交際費（会食）':'🍽️','その他経費':'📄'};
+const HK = ['北海道','帯広','札幌','旭川','函館','釧路','小樽','室蘭','苫小牧','北見','網走','稚内','千歳','恵庭','北広島'];
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+const SCREENS = {
+  login:{id:'screen-login',title:'ログイン',nav:''},
+  home:{id:'screen-home',title:'ホーム',nav:'home'},
+  step1:{id:'screen-step1',title:'新規申請入力 — STEP 1 基本情報',nav:'step1'},
+  step2:{id:'screen-step2',title:'新規申請入力 — STEP 2 領収書入力',nav:'step1'},
+  step3:{id:'screen-step3',title:'新規申請入力 — STEP 3 確認・合計',nav:'step1'},
+  report:{id:'screen-report',title:'帳票出力',nav:'report'},
+  saved:{id:'screen-saved',title:'保存済み申請',nav:'saved'},
+};
+function go(key) {
+  if (key !== 'login' && !currentUser) { go('login'); return; }
+  const s=SCREENS[key]; if(!s) return;
+  document.querySelectorAll('.screen').forEach(e=>e.classList.remove('active'));
+  document.getElementById(s.id).classList.add('active');
+  document.getElementById('topbar-title').textContent=s.title;
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.remove('active');
+    if((n.getAttribute('onclick')||'').includes("'"+s.nav+"'")) n.classList.add('active');
+  });
+  window.scrollTo(0,0);
+}
+
+// ══════════════════════════════════════════════
+// STEP 1 LOGIC
+// ══════════════════════════════════════════════
+function toggleShutcho() {
+  const on = document.getElementById('shutcho-toggle').checked;
+  document.getElementById('shutcho-section').style.display = on ? 'block' : 'none';
+  document.getElementById('toggle-label').textContent = on ? '出張あり（日当・交通費・宿泊費を含む）' : '出張なし（交際費・一般経費のみ）';
+  if(!on) allowanceAmt=0;
+}
+
+const isHK = d => HK.some(k=>d.includes(k));
+function calcEndDate() {
+  const start = document.getElementById('s1-start').value;
+  const nights = parseInt((document.getElementById('s1-nights')||{value:'0'}).value);
+  if(start) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + nights);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    document.getElementById('s1-end').value = `${y}-${m}-${day}`;
+  }
+}
+
+function calcAllowance() {
+  const dest = (document.getElementById('s1-dest')||{value:''}).value.trim();
+  const nights = parseInt((document.getElementById('s1-nights')||{value:'1'}).value);
+  const days = nights + 1;
+  const hk = isHK(dest);
+  const rateAuto = hk ? 5000 : 6000;
+  const rov = (document.getElementById('rate-override')||{value:'auto'}).value;
+  const rate = rov==='auto' ? rateAuto : parseInt(rov);
+  allowanceAmt = rate * days;
+
+  const chip = document.getElementById('region-chip');
+  const res = document.getElementById('allowance-result');
+  const desc = document.getElementById('allowance-desc');
+  const amt = document.getElementById('allowance-amt');
+
+  if(dest) {
+    const lbl = hk ? '🏔️ 北海道内' : '🗾 北海道外';
+    chip.textContent = `${lbl}　日当：${rateAuto.toLocaleString()}円/日`;
+    chip.style.background = hk ? '#fff8e6' : 'var(--blue-lt)';
+    chip.style.color = hk ? '#e5a50a' : 'var(--blue)';
+    res.style.display = 'block';
+    desc.textContent = `${rate.toLocaleString()}円/日 × ${days}日（${lbl.replace(/^..../,'')}）`;
+    amt.textContent = allowanceAmt.toLocaleString() + '円';
+  } else {
+    res.style.display = 'none';
+  }
+}
+
+function goStep2() {
+  go('step2');
+  if(receipts.length===0) addReceipt();
+  else renderReceipts();
+}
+
+// ══════════════════════════════════════════════
+// STEP 2 LOGIC: 領収書入力
+// ══════════════════════════════════════════════
+function addReceipt() {
+  const id = ++receiptIdSeq;
+  receipts.push({id, date:'', store:'', amount:'', cat:'交通費', address:'', participants:'', relation:'', totalPax:'2', ourPax:'1', notes:''});
+  renderReceipts();
+  setTimeout(()=>{
+    const el = document.getElementById(`r-date-${id}`);
+    if(el) el.focus();
+    const row = document.getElementById(`receipt-row-${id}`);
+    if(row) row.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }, 50);
+}
+
+function delReceipt(id) {
+  receipts = receipts.filter(r=>r.id!==id);
+  renderReceipts();
+}
+
+function updateReceipt(id, field, val) {
+  const r = receipts.find(r=>r.id===id);
+  if(r) r[field]=val;
+  if(field==='cat') renderReceipts(); // re-render to show/hide ent fields
+}
+
+function renderReceipts() {
+  const con = document.getElementById('receipt-list');
+  if(!con) return;
+  con.innerHTML='';
+  receipts.forEach((r,i)=>{
+    const isEnt = r.cat==='交際費（会食）';
+    const div = document.createElement('div');
+    div.className = `receipt-row ${isEnt?'is-ent':'is-trv'}`;
+    div.id = `receipt-row-${r.id}`;
+    div.innerHTML = `
+      <div class="receipt-row-header">
+        <div class="row-num">${i+1}</div>
+        <div class="row-type">${CAT_ICON[r.cat]||'📄'} ${r.cat}</div>
+        <span class="${isEnt?'badge badge-ent':'badge badge-trv'}">${isEnt?'→ 交際費精算書':'→ 経費明細書'}</span>
+        <button class="row-del" onclick="delReceipt(${r.id})" title="削除">✕</button>
+      </div>
+      <div class="gr4">
+        <div class="fg" style="margin-bottom:0;">
+          <label class="fl">経費区分<span class="req">*</span></label>
+          <select class="fc" onchange="updateReceipt(${r.id},'cat',this.value)">
+            ${CATS.map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fg" style="margin-bottom:0;">
+          <label class="fl">日付<span class="req">*</span></label>
+          <input type="date" id="r-date-${r.id}" class="fc" value="${r.date}" onchange="updateReceipt(${r.id},'date',this.value)">
+        </div>
+        <div class="fg" style="margin-bottom:0;">
+          <label class="fl">店舗名・内容<span class="req">*</span></label>
+          <input type="text" class="fc" value="${r.store}" placeholder="例：北の屋台 aurora" onchange="updateReceipt(${r.id},'store',this.value)">
+        </div>
+        <div class="fg" style="margin-bottom:0;">
+          <label class="fl">金額（税込）<span class="req">*</span></label>
+          <input type="number" class="fc mono" value="${r.amount}" placeholder="0" onchange="updateReceipt(${r.id},'amount',this.value)">
+        </div>
+      </div>
+      ${isEnt ? `
+      <div class="ent-detail">
+        <div class="ent-detail-title">🍽️ 交際費精算書に必要な追加情報</div>
+        <div class="gr2">
+          <div class="fg" style="margin-bottom:8px;">
+            <label class="fl">飲食店の所在地</label>
+            <input type="text" class="fc" value="${r.address}" placeholder="例：帯広市西1条南7丁目" onchange="updateReceipt(${r.id},'address',this.value)">
+          </div>
+          <div class="fg" style="margin-bottom:8px;">
+            <label class="fl">当社との関係<span class="req">*</span></label>
+            <input type="text" class="fc" value="${r.relation}" placeholder="例：取引先（仕入先）" onchange="updateReceipt(${r.id},'relation',this.value)">
+          </div>
+        </div>
+        <div class="fg" style="margin-bottom:8px;">
+          <label class="fl">参加者の名称・氏名<span class="req">*</span></label>
+          <textarea class="fc" rows="2" placeholder="例：㈱〇〇　田中様&#10;　　〃　　鈴木様" onchange="updateReceipt(${r.id},'participants',this.value)">${r.participants}</textarea>
+        </div>
+        <div class="gr3">
+          <div class="fg" style="margin-bottom:0;">
+            <label class="fl">参加者合計<span class="req">*</span></label>
+            <select class="fc" onchange="updateReceipt(${r.id},'totalPax',this.value)">
+              ${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option ${String(n)===r.totalPax?'selected':''}>${n}</option>`).join('')}
+            </select>
+          </div>
+          <div class="fg" style="margin-bottom:0;">
+            <label class="fl">うち当社<span class="req">*</span></label>
+            <select class="fc" onchange="updateReceipt(${r.id},'ourPax',this.value)">
+              ${[1,2,3,4,5].map(n=>`<option ${String(n)===r.ourPax?'selected':''}>${n}</option>`).join('')}
+            </select>
+          </div>
+          <div class="fg" style="margin-bottom:0;">
+            <label class="fl">その他参考事項</label>
+            <input type="text" class="fc" value="${r.notes}" placeholder="任意" onchange="updateReceipt(${r.id},'notes',this.value)">
+          </div>
+        </div>
+      </div>` : ''}
+    `;
+    con.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════════
+// STEP 3 LOGIC
+// ══════════════════════════════════════════════
+function goStep3() {
+  if(receipts.length===0){alert('領収書を1枚以上入力してください');return;}
+  buildStep3();
+  go('step3');
+}
+
+function buildStep3() {
+  const entList   = receipts.filter(r=>r.cat==='交際費（会食）');
+  const sonotaList= receipts.filter(r=>r.cat==='その他経費' || r.cat==='消耗品費');
+  const trvList   = receipts.filter(r=>r.cat!=='交際費（会食）' && r.cat!=='その他経費' && r.cat!=='消耗品費');
+  const entAmt = entList.reduce((s,r)=>s+Number(r.amount||0),0);
+  const sonotaAmt = sonotaList.reduce((s,r)=>s+Number(r.amount||0),0);
+  const trvAmt = trvList.reduce((s,r)=>s+Number(r.amount||0),0);
+  const hasShutcho = document.getElementById('shutcho-toggle').checked;
+  const nittou = hasShutcho ? allowanceAmt : 0;
+  const grand = entAmt + trvAmt + sonotaAmt + nittou;
+
+  // 振り分けテーブル
+  const tbody = document.getElementById('confirm-tbody');
+  tbody.innerHTML = '';
+  receipts.forEach((r,i)=>{
+    const isEnt = r.cat==='交際費（会食）';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td>${r.date||'—'}</td>
+      <td style="font-weight:600;">${r.store||'（未入力）'}</td>
+      <td><span class="chip ${isEnt?'chip-amber':'chip-blue'}">${CAT_ICON[r.cat]} ${r.cat}</span></td>
+      <td class="text-right mono" style="font-weight:700;">¥${Number(r.amount||0).toLocaleString()}</td>
+      <td>${isEnt?'<span class="badge badge-ent">交際費精算書</span>':'<span class="badge badge-trv">経費明細書</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if(hasShutcho && nittou>0){
+    const tr2 = document.createElement('tr');
+    tr2.style.background='var(--green-lt)';
+    tr2.innerHTML=`<td>—</td><td>—</td><td style="font-weight:600;">日当（自動計算）</td><td><span class="chip chip-green">💴 日当</span></td><td class="text-right mono" style="font-weight:700;">¥${nittou.toLocaleString()}</td><td><span class="badge badge-trv">経費明細書</span></td>`;
+    tbody.appendChild(tr2);
+  }
+
+  // サマリー
+  const sb = document.getElementById('summary-box');
+  let rows = '';
+  if(entAmt>0) rows+=`<div class="sum-row"><span class="sum-label">🍽️ 交際費計</span><span class="sum-val">¥${entAmt.toLocaleString()}</span></div>`;
+  if(trvAmt>0) rows+=`<div class="sum-row"><span class="sum-label">🚄 出張・一般経費計</span><span class="sum-val">¥${trvAmt.toLocaleString()}</span></div>`;
+  if(sonotaAmt>0) rows+=`<div class="sum-row"><span class="sum-label">📄 その他経費計</span><span class="sum-val">¥${sonotaAmt.toLocaleString()}</span></div>`;
+  if(nittou>0) rows+=`<div class="sum-row"><span class="sum-label">💴 日当</span><span class="sum-val">¥${nittou.toLocaleString()}</span></div>`;
+  rows+=`<div class="sum-row total"><span class="sum-label">合計精算額</span><span class="sum-val accent">¥${grand.toLocaleString()}</span></div>`;
+  sb.innerHTML=rows;
+
+  // ファイル名初期値：未入力の場合のみ自動生成
+  const fnEl = document.getElementById('s3-filename');
+  if (fnEl && !fnEl.value) {
+    const apDate = document.getElementById('s1-apply-date').value || '';
+    const nm = document.getElementById('s1-name').value || '';
+    const dest2 = (document.getElementById('s1-dest')||{value:''}).value;
+    const parts = [];
+    if (apDate) { const d=apDate.replace(/-/g,''); parts.push(`${d.slice(0,4)}年${parseInt(d.slice(4,6))}月`); }
+    if (nm) parts.push(nm.replace(/　/g,''));
+    if (dest2) parts.push(dest2);
+    else if (entAmt>0 && trvAmt===0 && nittou===0) parts.push('交際費');
+    fnEl.value = parts.join('_');
+  }
+
+  // ボタン
+  const btns = document.getElementById('step3-btns');
+  btns.innerHTML='';
+  if(entAmt>0||trvAmt>0||sonotaAmt>0||nittou>0){
+    const b1 = document.createElement('button');
+    b1.className='btn btn-accent btn-lg';
+    b1.style.justifyContent='center';
+    b1.innerHTML='💾 内容を確定して保存 →';
+    b1.onclick=()=>{confirmAndSave();};
+    btns.appendChild(b1);
+  }
+}
+
+// ══════════════════════════════════════════════
+// STEP 4: 帳票出力プレビュー
+// ══════════════════════════════════════════════
+function buildReport() {
+  const entList   = receipts.filter(r=>r.cat==='交際費（会食）');
+  const sonotaList= receipts.filter(r=>r.cat==='その他経費' || r.cat==='消耗品費');
+  const trvList   = receipts.filter(r=>r.cat!=='交際費（会食）' && r.cat!=='その他経費' && r.cat!=='消耗品費');
+  const entAmt = entList.reduce((s,r)=>s+Number(r.amount||0),0);
+  const sonotaAmt = sonotaList.reduce((s,r)=>s+Number(r.amount||0),0);
+  const trvAmt = trvList.reduce((s,r)=>s+Number(r.amount||0),0);
+  const hasShutcho = document.getElementById('shutcho-toggle').checked;
+  const nittou = hasShutcho ? allowanceAmt : 0;
+  const grand = entAmt + trvAmt + sonotaAmt + nittou;
+  const dept = document.getElementById('s1-dept').value;
+  const name = document.getElementById('s1-name').value;
+  const dest = (document.getElementById('s1-dest')||{value:''}).value;
+  const tStart = (document.getElementById('s1-start')||{value:''}).value;
+  const tEnd = (document.getElementById('s1-end')||{value:''}).value;
+  const period = tStart&&tEnd ? `${tStart.replace(/-/g,'/')}〜${tEnd.replace(/-/g,'/')}` : '';
+  const area = document.getElementById('report-area');
+  area.innerHTML='';
+
+  // 交際費精算書プレビュー
+  if(entList.length>0) {
+    const first = entList[0];
+    const pp = document.createElement('div');
+    pp.className='pp';
+    pp.innerHTML=`
+      <div class="pp-head">
+        <div><div class="pp-title">交際費精算書</div><div class="pp-sub">ENTERTAINMENT EXPENSE REPORT</div></div>
+        <div class="pp-meta">${first.date||''}<br><span style="color:#f0c040;font-size:16px;font-weight:800;font-family:'IBM Plex Mono',monospace;">¥${entAmt.toLocaleString()}</span></div>
+      </div>
+      <div class="pp-body">
+        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+          ${[
+            ['所属・氏名', `${dept}　${name}`],
+            ['飲食等の年月日', first.date||'—'],
+            ['飲食店名と所在地', [first.store,first.address].filter(Boolean).join('　')],
+            ['参加者の名称・氏名', first.participants||'（未入力）'],
+            ['当社との関係', first.relation||'（未入力）'],
+            ['参加者の数', `合計 ${first.totalPax}名（うち当社 ${first.ourPax}名）`],
+            ['費用の金額', `¥${entAmt.toLocaleString()}`],
+            ['精算金額', `¥${entAmt.toLocaleString()}`],
+            ['その他参考事項', first.notes||'—'],
+          ].map(([l,v])=>`<tr><td style="background:#f0f4fa;padding:3px 7px;font-weight:600;border:1px solid var(--border);width:130px;vertical-align:top;">${l}</td><td style="padding:4px 7px;border:1px solid var(--border);">${v}</td></tr>`).join('')}
+        </table>
+        <div style="margin-top:10px;">
+          <div style="display:flex;gap:8px;margin-top:0;">
+            <button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="dlKosai()">📥 Word (.docx)</button>
+            <button class="btn btn-green" style="flex:1;justify-content:center;" onclick="dlKosaiPDF()">🖨️ PDF出力</button>
+          </div>
+        </div>
+      </div>`;
+    area.appendChild(pp);
+  }
+
+  // 経費明細書プレビュー
+  if(trvList.length>0 || sonotaList.length>0 || nittou>0) {
+    const pp2 = document.createElement('div');
+    pp2.className='pp';
+    const rows = [
+      ...(nittou>0?[`<tr><td style="padding:3px 5px;border:1px solid var(--border);">${tStart}</td><td style="padding:3px 5px;border:1px solid var(--border);">日当（${dest}）</td><td style="padding:3px 5px;border:1px solid var(--border);text-align:right;font-family:'IBM Plex Mono',monospace;">${nittou.toLocaleString()}</td></tr>`]:[]),
+      ...trvList.map(r=>`<tr><td style="padding:3px 5px;border:1px solid var(--border);">${r.date||''}</td><td style="padding:3px 5px;border:1px solid var(--border);">${CAT_ICON[r.cat]||''} ${r.store||''}</td><td style="padding:3px 5px;border:1px solid var(--border);text-align:right;font-family:'IBM Plex Mono',monospace;">${Number(r.amount||0).toLocaleString()}</td></tr>`),
+      ...sonotaList.map(r=>`<tr><td style="padding:3px 5px;border:1px solid var(--border);">${r.date||''}</td><td style="padding:3px 5px;border:1px solid var(--border);">${CAT_ICON[r.cat]||'📄'} ${r.store||''}</td><td style="padding:3px 5px;border:1px solid var(--border);text-align:right;font-family:'IBM Plex Mono',monospace;">${Number(r.amount||0).toLocaleString()}</td></tr>`)
+    ].join('');
+    const keihiTotal = trvAmt + sonotaAmt + nittou;
+    pp2.innerHTML=`
+      <div class="pp-head">
+        <div><div class="pp-title">経費明細書</div><div class="pp-sub">EXPENSE REPORT</div></div>
+        <div class="pp-meta">${period}<br><span style="color:#f0c040;font-size:16px;font-weight:800;font-family:'IBM Plex Mono',monospace;">¥${keihiTotal.toLocaleString()}</span></div>
+      </div>
+      <div class="pp-body">
+        <div style="font-size:10px;margin-bottom:7px;display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+          <div style="background:#f0f4fa;padding:3px 7px;border-radius:4px;"><span style="font-weight:600;">出張先：</span>${dest||'—'}</div>
+          <div style="background:#f0f4fa;padding:3px 7px;border-radius:4px;"><span style="font-weight:600;">期間：</span>${period||'—'}</div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+          <thead><tr style="background:#f0f4fa;"><th style="padding:3px 5px;border:1px solid var(--border);">日付</th><th style="padding:3px 5px;border:1px solid var(--border);">内容</th><th style="padding:3px 5px;text-align:right;border:1px solid var(--border);">金額</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr style="background:#f0f4fa;font-weight:700;"><td colspan="2" style="padding:3px 5px;border:1px solid var(--border);text-align:right;">合計</td><td style="padding:3px 5px;border:1px solid var(--border);text-align:right;font-family:'IBM Plex Mono',monospace;">${keihiTotal.toLocaleString()}</td></tr></tfoot>
+        </table>
+        <div style="text-align:right;margin-top:5px;font-size:9px;color:var(--text3);">氏名：${name}　所属：${dept}</div>
+        <div style="margin-top:10px;">
+          <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="dlShutcho()">📥 Word (.docx)</button>
+              <button class="btn btn-green" style="flex:1;justify-content:center;" onclick="dlShuchoPDF()">🖨️ PDF出力</button>
+            </div>
+        </div>
+      </div>`;
+    area.appendChild(pp2);
+  }
+
+  // サマリーフッター
+  const keihiCount = (trvList.length>0||sonotaList.length>0||nittou>0) ? 1 : 0;
+  document.getElementById('rpt-summary').textContent = `帳票${(entList.length>0?entList.length:0)+keihiCount}枚 / 領収書${receipts.length}枚 / 合計 ¥${grand.toLocaleString()}`;
+  const dlBtns = document.getElementById('rpt-dl-btns');
+  dlBtns.innerHTML='';
+  if(entList.length>0){
+    const b=document.createElement('button');b.className='btn btn-primary btn-sm';b.innerHTML='📥 交際費 Word';b.onclick=dlKosai;dlBtns.appendChild(b);
+    const bx=document.createElement('button');bx.className='btn btn-green btn-sm';bx.innerHTML='🖨️ 交際費 PDF';bx.onclick=dlKosaiPDF;dlBtns.appendChild(bx);
+  }
+  if(trvList.length>0||sonotaList.length>0||nittou>0){
+    const b=document.createElement('button');b.className='btn btn-primary btn-sm';b.innerHTML='📥 経費明細 Word';b.onclick=dlShutcho;dlBtns.appendChild(b);
+    const bp=document.createElement('button');bp.className='btn btn-green btn-sm';bp.innerHTML='🖨️ 経費明細 PDF';bp.onclick=dlShuchoPDF;dlBtns.appendChild(bp);
+  }
+  if(entList.length>0&&(trvList.length>0||sonotaList.length>0||nittou>0)){const b=document.createElement('button');b.className='btn btn-accent';b.innerHTML='📦 両方まとめてDL';b.onclick=()=>{dlKosaiPDF();setTimeout(dlShuchoPDF,1200);};dlBtns.appendChild(b);}
+}
+
+// ══════════════════════════════════════════════
+// WORD出力
+// ══════════════════════════════════════════════
+function CM(v){return Math.round(v*567);}
+
+function mCell(text, opt={}) {
+  const D = window.docx;
+  const {
+    bold=false, size=18, align='left', shade=null,
+    width=null, colSpan=null,
+    margins={top:60,bottom:60,left:100,right:100},
+    noBorder=false, rowSpan=null
+  } = opt;
+
+  const S = n => ({style:'single', size:n, color:'888888'});
+  const N = {style:'none', size:0, color:'FFFFFF'};
+  const brd = noBorder
+    ? {top:N, bottom:N, left:N, right:N}
+    : {top:S(4), bottom:S(4), left:S(4), right:S(4)};
+
+  const cellOpts = {
+    children: [new D.Paragraph({
+      alignment: align,
+      children: [new D.TextRun({text: String(text||''), bold, size, font:'MS Gothic'})]
+    })],
+    borders: brd,
+    verticalAlign: 'center',
+    margins,
+  };
+  if (shade)   cellOpts.shading = {fill: shade, type:'clear', color:'auto'};
+  if (width)   cellOpts.width   = {size: width, type:'dxa'};
+  if (colSpan) cellOpts.columnSpan = colSpan;
+  if (rowSpan) cellOpts.rowSpan = rowSpan;
+
+  return new D.TableCell(cellOpts);
+}
+
+function mkRow(cells, heightTwips) {
+  const opts = {children: cells};
+  if (heightTwips) opts.height = {value: heightTwips, rule:'exact'};
+  return new window.docx.TableRow(opts);
+}
+
+async function dlKosai() {
+  try {
+    const D = window.docx;
+    if (!D) { alert("docxライブラリ未読込。ネット接続を確認しページを再読み込みしてください。"); return; }
+    const entList = receipts.filter(r=>r.cat==='交際費（会食）');
+    if (entList.length===0) { alert('交際費の領収書がありません'); return; }
+    const entAmt  = entList.reduce((s,r)=>s+Number(r.amount||0), 0);
+    const first   = entList[0];
+    const dept    = document.getElementById('s1-dept').value;
+    const name    = document.getElementById('s1-name').value;
+    const applyDate = (document.getElementById('s1-apply-date')||{value:''}).value;
+    const seisanDate= (document.getElementById('s1-seisan-date')||{value:''}).value;
+    const af = applyDate ? applyDate.replace(/-/g,'/') : new Date().toISOString().slice(0,10).replace(/-/g,'/');
+    const sf = seisanDate.length===10
+      ? `${seisanDate.slice(0,4)}年${parseInt(seisanDate.slice(5,7))}月${parseInt(seisanDate.slice(8,10))}日`
+      : '　　年　月　日';
+
+    const TW = CM(18);
+    const L  = (t,w) => mCell(t,{bold:true, size:16, shade:'D9D9D9', width:w});
+    const V  = (t,w,a) => mCell(t,{size:17, width:w, align:a||'left'});
+
+    // 参加者テキスト（改行対応）
+    const participantsText = (first.participants||'').replace(/\n/g,'  /  ');
+
+    const rows = [
+      mkRow([mCell(af, {size:16, colSpan:5, width:TW, align:'right', noBorder:true})]),
+      mkRow([mCell('交　際　費　精　算　書', {bold:true, size:30, align:'center', colSpan:5, width:TW, margins:{top:140,bottom:140,left:100,right:100}})]),
+      mkRow([mCell('',{colSpan:4,width:CM(14),noBorder:true}), mCell('承認印',{size:14,width:CM(4),align:'center'})], 900),
+      mkRow([mCell('',{colSpan:5,width:TW,noBorder:true})], 200),
+      mkRow([L('申請者',CM(3)), L('所属',CM(2)), V(dept,CM(6)), L('氏名',CM(2)), V(name,CM(5))]),
+      mkRow([mCell('',{colSpan:5,width:TW,noBorder:true})], 200),
+      mkRow([L('飲食等のあった年月日',CM(6)), mCell(first.date||'', {size:17,colSpan:4,width:CM(12),align:'center'})]),
+      mkRow([L('飲食等に参加した得意先等の名称及び参加者の氏名',CM(6)), mCell(participantsText, {size:16,colSpan:4,width:CM(12),align:'left'})], 1400),
+      mkRow([L('当社との関係',CM(6)), mCell(first.relation||'', {size:16,colSpan:4,width:CM(12),align:'center'})], 700),
+      mkRow([L('参加者の数',CM(6)), mCell(`合計　${first.totalPax||''}　名　（うち当社　${first.ourPax||''}　名）`, {size:16,colSpan:4,width:CM(12)})]),
+      mkRow([L('費用の金額',CM(6)), mCell(`${entAmt.toLocaleString()}　円`, {size:18,bold:true,colSpan:4,width:CM(12),align:'center'})]),
+      mkRow([L('飲食店等の名称と所在地',CM(6)), mCell([first.store,first.address].filter(Boolean).join('　'), {size:16,colSpan:4,width:CM(12),align:'left'})], 900),
+      mkRow([L('その他参考となるべき事項',CM(6)), mCell(first.notes||'', {size:16,colSpan:4,width:CM(12)})], 1000),
+      mkRow([mCell('',{colSpan:5,width:TW,noBorder:true})], 200),
+      mkRow([L('精算金額',CM(3)), V(`¥ ${entAmt.toLocaleString()}`,CM(5),'right'), L('精算日',CM(3)), V(sf,CM(7))]),
+      mkRow([mCell('',{colSpan:4,width:CM(14),noBorder:true}), mCell('受領印',{size:14,width:CM(4),align:'center'})], 900),
+    ];
+
+    const table = new D.Table({
+      width: {size:TW, type:'dxa'},
+      columnWidths: [CM(3),CM(2),CM(5),CM(3),CM(5)],
+      rows
+    });
+
+    const doc2 = new D.Document({
+      styles:{default:{document:{run:{font:'MS Gothic',size:18}}}},
+      sections:[{
+        properties:{page:{size:{width:11906,height:16838}, margin:{top:CM(1.5),right:CM(1.5),bottom:CM(1.5),left:CM(1.5)}}},
+        children:[new D.Paragraph({spacing:{after:100},children:[new D.TextRun('')]}), table]
+      }]
+    });
+
+    const blob = await D.Packer.toBlob(doc2);
+    saveAs(blob,
+      `交際費精算書_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.docx`);
+  } catch(e) {
+    console.error(e);
+    alert('Word出力エラー: ' + e.message);
+  }
+}
+
+async function dlShutcho() {
+  try {
+    const D = window.docx;
+    if (!D) { alert("docxライブラリ未読込。ネット接続を確認しページを再読み込みしてください。"); return; }
+    const trvList   = receipts.filter(r=>r.cat!=='交際費（会食）');
+    const kosaiList = receipts.filter(r=>r.cat==='交際費（会食）');
+    const trvAmt    = trvList.reduce((s,r)=>s+Number(r.amount||0), 0);
+    const kosaiAmt  = kosaiList.reduce((s,r)=>s+Number(r.amount||0), 0);
+    const hasShutcho= document.getElementById('shutcho-toggle').checked;
+    const nittou    = hasShutcho ? allowanceAmt : 0;
+    const grand     = trvAmt + nittou + kosaiAmt + sonotaAmt;
+    const name  = document.getElementById('s1-name').value;
+    const dept  = document.getElementById('s1-dept').value;
+    const dest  = (document.getElementById('s1-dest')||{value:''}).value;
+    const tStart= (document.getElementById('s1-start')||{value:''}).value;
+    const tEnd  = (document.getElementById('s1-end')||{value:''}).value;
+    const period= tStart&&tEnd ? `${tStart.replace(/-/g,'/')}〜${tEnd.replace(/-/g,'/')}` : '—';
+    const nights= parseInt((document.getElementById('s1-nights')||{value:'1'}).value);
+    const days  = nights + 1;
+
+    const TW  = CM(18);
+    const COL = [CM(3), CM(3), CM(4), CM(6), CM(2)];
+
+    const H  = (t,w) => mCell(t,{bold:true,size:15,shade:'CCCCCC',width:w,align:'center'});
+    const SH = (t,c) => mkRow([mCell(t,{bold:true,size:17,shade:c,colSpan:5,width:TW})]);
+    const CH = ()    => mkRow([H('会計日',COL[0]),H('金額',COL[1]),H('内容',COL[2]),H('備考',COL[3]),H('✓',COL[4])]);
+    const DR = (date,amt,content,note) => mkRow([
+      mCell(date,   {size:15,width:COL[0],align:'center'}),
+      mCell(`¥${(amt||0).toLocaleString()}`,{size:15,width:COL[1],align:'right'}),
+      mCell(content,{size:15,width:COL[2],align:'center'}),
+      mCell(note,   {size:13,width:COL[3]}),
+      mCell('',     {size:15,width:COL[4]})
+    ]);
+    const ER = () => mkRow([
+      mCell('',{size:15,width:COL[0]}),mCell('',{size:15,width:COL[1]}),
+      mCell('',{size:15,width:COL[2]}),mCell('',{size:15,width:COL[3]}),
+      mCell('',{size:15,width:COL[4]})
+    ], 500);
+    const SR = (amt,l) => mkRow([
+      mCell('合計',{bold:true,size:16,shade:'DDDDDD',colSpan:2,width:CM(6)}),
+      mCell(`¥${amt.toLocaleString()}　…${l}`,{bold:true,size:16,colSpan:3,width:CM(12),align:'right'})
+    ]);
+    const SP = () => mkRow([mCell('',{colSpan:5,width:TW,noBorder:true})], 200);
+
+    const rows = [
+      mkRow([mCell('経費明細書', {bold:true,size:24,colSpan:5,width:TW,noBorder:true,align:'center'})]),
+      mkRow([mCell(`期間：${period}　　氏名：${name}　　所属：${dept}　　出張先：${dest}`,{size:15,colSpan:5,width:TW,noBorder:true})]),
+      SP(),
+      mkRow([
+        mCell('合計精算額',{bold:true,size:16,shade:'D9D9D9',width:CM(4)}),
+        mCell(`¥ ${grand.toLocaleString()}　（A ＋ B ＋ C）`,{bold:true,size:18,colSpan:4,width:CM(14),align:'center'})
+      ]),
+      SP(),
+      // ── A 出張費 ──
+      SH('A　出張費（日当・交通費・宿泊費など）','C8D8F0'), CH(),
+      ...(nittou>0 ? [DR(tStart.replace(/-/g,'/'), nittou, '日当', `¥${Math.round(nittou/days).toLocaleString()}/日 × ${days}日（${dest}）`)] : []),
+      ...trvList.map(r => DR(r.date||'', Number(r.amount||0), r.cat||'', r.store||'')),
+      ...((trvList.length===0 && nittou===0) ? [ER(),ER()] : []),
+      SR(trvAmt+nittou,'A'), SP(),
+      // ── B 交際費 ──
+      SH('B　交際費（会食・接待）','C8D8F0'), CH(),
+      ...kosaiList.map(r => DR(r.date||'', Number(r.amount||0), '会食', r.store||'')),
+      ...(kosaiList.length===0 ? [ER(),ER()] : []),
+      SR(kosaiAmt,'B'), SP(),
+      // ── C その他経費 ──
+      SH('C　その他経費','C8D8F0'), CH(), ER(), ER(), SR(0,'C'),
+    ];
+
+    const table = new D.Table({
+      width: {size:TW, type:'dxa'},
+      columnWidths: COL,
+      rows
+    });
+
+    const doc2 = new D.Document({
+      styles:{default:{document:{run:{font:'MS Gothic',size:18}}}},
+      sections:[{
+        properties:{page:{size:{width:11906,height:16838}, margin:{top:CM(1.5),right:CM(1.5),bottom:CM(1.5),left:CM(1.5)}}},
+        children:[new D.Paragraph({spacing:{after:100},children:[new D.TextRun('')]}), table]
+      }]
+    });
+
+    const blob = await D.Packer.toBlob(doc2);
+    saveAs(blob,
+      `経費明細書_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.docx`);
+  } catch(e) {
+    console.error(e);
+    alert('Word出力エラー: ' + e.message);
+  }
+}
+
+
+// ══════════════════════════════════════════════
+// PDF出力（経費明細書）
+// ══════════════════════════════════════════════
+function dlShuchoPDF() {
+  if (!window.html2canvas || !window.jspdf) {
+    alert('ライブラリが読み込まれていません。\nネット接続を確認してページを再読み込みしてください。'); return;
+  }
+  const trvList   = receipts.filter(r => r.cat !== '交際費（会食）' && r.cat !== 'その他経費' && r.cat !== '消耗品費');
+  const kosaiList = receipts.filter(r => r.cat === '交際費（会食）');
+  const sonotaList= receipts.filter(r => r.cat === 'その他経費' || r.cat === '消耗品費');
+  const trvAmt    = trvList.reduce((s,r) => s + Number(r.amount||0), 0);
+  const kosaiAmt  = kosaiList.reduce((s,r) => s + Number(r.amount||0), 0);
+  const sonotaAmt = sonotaList.reduce((s,r) => s + Number(r.amount||0), 0);
+  const hasShutcho= document.getElementById('shutcho-toggle').checked;
+  const nittou    = hasShutcho ? allowanceAmt : 0;
+  const grand     = trvAmt + nittou + kosaiAmt + sonotaAmt;
+  const name   = document.getElementById('s1-name').value;
+  const dept   = document.getElementById('s1-dept').value;
+  const dest   = (document.getElementById('s1-dest')||{value:''}).value;
+  const tStart = (document.getElementById('s1-start')||{value:''}).value;
+  const tEnd   = (document.getElementById('s1-end')||{value:''}).value;
+  const period = tStart&&tEnd ? `${tStart.replace(/-/g,'/')}〜${tEnd.replace(/-/g,'/')}` : '—';
+  const nights = parseInt((document.getElementById('s1-nights')||{value:'1'}).value);
+  const days   = nights + 1;
+  const today  = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const applyDate = (document.getElementById('s1-apply-date')||{value:''}).value;
+  const af = applyDate ? applyDate.replace(/-/g,'/') : today.slice(0,4)+'/'+today.slice(4,6)+'/'+today.slice(6);
+
+  // ── 列幅定義（計190mm）──
+  // No./日付/金額/区分・内容/備考/✓
+  const W = ['10mm','24mm','24mm','44mm','74mm','14mm'];
+
+  // ── スタイル定義 ──
+  const base   = 'border:1px solid #aaa;padding:2.5mm 2mm;vertical-align:middle;font-size:8.5pt;';
+  const TC     = base + 'text-align:center;';
+  const TR     = base + 'text-align:right;font-family:monospace;';
+  const TL     = base + 'text-align:left;';
+  const TH_S   = `background:#c8d8f0;font-weight:bold;font-size:9.5pt;padding:2.5mm 3mm;border:1px solid #aaa;`;
+  const TH_C   = `background:#dde8f5;font-weight:bold;text-align:center;${base}`;
+
+  const COLGROUP = `<colgroup>
+    <col style="width:${W[0]}"><col style="width:${W[1]}"><col style="width:${W[2]}">
+    <col style="width:${W[3]}"><col style="width:${W[4]}"><col style="width:${W[5]}">
+  </colgroup>`;
+
+  const SH = label => `
+    <tr><td colspan="6" style="${TH_S}">${label}</td></tr>
+    <tr>
+      <td style="${TH_C}">No.</td>
+      <td style="${TH_C}">日付</td>
+      <td style="${TH_C}">金額</td>
+      <td style="${TH_C}">区分・内容</td>
+      <td style="${TH_C}">備考</td>
+      <td style="${TH_C}">✓</td>
+    </tr>`;
+
+  const ROW = (no, date, amt, cat, note) => {
+    // no = "A1","A2",... → 表示は数字部分のみ "1","2",...
+    const dispNo = no.replace(/^[A-Z]/,'');
+    return `
+    <tr style="height:10mm;" data-no="${no}">
+      <td style="${TC}font-size:9pt;font-weight:600;">${dispNo}</td>
+      <td style="${TC}">${date}</td>
+      <td style="${TR}">¥${Number(amt).toLocaleString()}</td>
+      <td style="${TC}">${cat}</td>
+      <td style="${TL}font-size:8pt;">${note}</td>
+      <td style="${TC}"></td>
+    </tr>`;
+  };
+
+  const EMPTY = () => `
+    <tr style="height:10mm;">
+      <td style="${TC}"></td><td style="${TC}"></td><td style="${TC}"></td>
+      <td style="${TC}"></td><td style="${TL}"></td><td style="${TC}"></td>
+    </tr>`;
+
+  const SUBTOTAL = (amt, label) => `
+    <tr>
+      <td colspan="2" style="${TH_C}background:#e4e4e4;">合　計</td>
+      <td colspan="4" style="${TR}font-weight:bold;font-size:9.5pt;">¥${amt.toLocaleString()}　…${label}</td>
+    </tr>`;
+
+  const GAP = () => `<tr><td colspan="6" style="border:none;height:4mm;"></td></tr>`;
+
+  // ── 日当（独立セクション） ──
+  const nittouRows = nittou > 0 ? `
+    <tr style="height:10mm;" data-no="N1">
+      <td style="${TC}font-size:9pt;font-weight:600;">1</td>
+      <td style="${TC}">${tStart.replace(/-/g,'/')}</td>
+      <td style="${TR}">¥${nittou.toLocaleString()}</td>
+      <td style="${TC}">日当</td>
+      <td style="${TL}font-size:8pt;">¥${Math.round(nittou/days).toLocaleString()}/日×${days}日（${dest}）</td>
+      <td style="${TC}"></td>
+    </tr>` : EMPTY();
+
+  // ── A: 出張費（交通費・宿泊費） - 日付ソート ＋ 通し番号 ──
+  const trvItems = trvList.map(r => ({
+    date: r.date||'', amount: Number(r.amount||0),
+    cat: r.cat||'', note: r.store||''
+  }));
+  const sectionA = [...trvItems].sort((a,b) => a.date.localeCompare(b.date));
+
+  // ── B: 交際費 - 日付ソート ＋ 通し番号 ──
+  const sectionB = kosaiList
+    .map(r => ({ date: r.date||'', amount: Number(r.amount||0),
+                 cat: '会食（交際費）', note: r.store||'' }))
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  // ── C: その他経費 - 日付ソート ＋ 通し番号 ──
+  const sectionC = sonotaList
+    .map(r => ({ date: r.date||'', amount: Number(r.amount||0),
+                 cat: 'その他経費', note: r.store||'' }))
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  // 通し番号：各セクションごとにA1〜, B1〜, C1〜
+  const aRows = sectionA.length
+    ? sectionA.map((it,i) => ROW(`A${i+1}`, it.date.replace(/-/g,'/'), it.amount, it.cat, it.note)).join('')
+    : EMPTY();
+  const bRows = sectionB.length
+    ? sectionB.map((it,i) => ROW(`B${i+1}`, it.date.replace(/-/g,'/'), it.amount, it.cat, it.note)).join('')
+    : EMPTY();
+  const cRows = sectionC.length
+    ? sectionC.map((it,i) => ROW(`C${i+1}`, it.date.replace(/-/g,'/'), it.amount, it.cat, it.note)).join('')
+    : EMPTY();
+
+  const html = `<div id="shutcho-pdf-root" style="width:190mm;padding:10mm 12mm;margin:0;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:9pt;color:#000;background:#fff;box-sizing:border-box;">
+
+  <div style="text-align:right;font-size:9pt;margin-bottom:3mm;">${af}</div>
+  <div style="text-align:center;font-size:18pt;font-weight:bold;letter-spacing:0.3em;margin-bottom:5mm;">経　費　明　細　書</div>
+
+  <!-- ヘッダー情報 -->
+  <table style="width:100%;border-collapse:collapse;font-size:9pt;margin-bottom:5mm;">
+    <colgroup>
+      <col style="width:16mm"><col style="width:54mm">
+      <col style="width:14mm"><col style="width:28mm">
+      <col style="width:16mm"><col>
+    </colgroup>
+    <tr style="height:10mm;">
+      <td style="border:1px solid #aaa;background:#f0f0f0;font-weight:bold;padding:2mm 3mm;text-align:center;">期間</td>
+      <td style="border:1px solid #aaa;padding:2mm 3mm;">${period}</td>
+      <td style="border:1px solid #aaa;background:#f0f0f0;font-weight:bold;padding:2mm 3mm;text-align:center;">氏名</td>
+      <td style="border:1px solid #aaa;padding:2mm 3mm;">${name}</td>
+      <td style="border:1px solid #aaa;background:#f0f0f0;font-weight:bold;padding:2mm 3mm;text-align:center;">所属</td>
+      <td style="border:1px solid #aaa;padding:2mm 3mm;">${dept}</td>
+    </tr>
+    <tr style="height:10mm;">
+      <td style="border:1px solid #aaa;background:#f0f0f0;font-weight:bold;padding:2mm 3mm;text-align:center;">出張先（なければ空欄）</td>
+      <td colspan="5" style="border:1px solid #aaa;padding:2mm 3mm;">${dest}</td>
+    </tr>
+    <tr style="height:12mm;">
+      <td style="border:1px solid #aaa;background:#f0f0f0;font-weight:bold;padding:2mm 3mm;text-align:center;line-height:1.4;">合計<br>精算額</td>
+      <td colspan="5" style="border:1px solid #aaa;padding:2mm 4mm;font-size:14pt;font-weight:bold;text-align:center;">
+        ¥${grand.toLocaleString()}　　（日当＋A＋B＋C）
+      </td>
+    </tr>
+  </table>
+
+  <!-- 明細テーブル -->
+  <table style="width:100%;border-collapse:collapse;font-size:8.5pt;">
+    ${COLGROUP}
+    ${nittou > 0 ? `${SH('日当')}${nittouRows}${SUBTOTAL(nittou, '日当')}${GAP()}` : ''}
+    ${SH('A　出張費（交通費・宿泊費）')}
+    ${aRows}
+    ${SUBTOTAL(trvAmt, 'A')}
+    ${GAP()}
+    ${SH('B　交際費（会食・接待）')}
+    ${bRows}
+    ${SUBTOTAL(kosaiAmt, 'B')}
+    ${GAP()}
+    ${SH('C　その他経費')}
+    ${cRows}
+    ${SUBTOTAL(sonotaAmt, 'C')}
+  </table>
+
+</div>`;
+
+  let container = document.getElementById('shutcho-pdf-render-area');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'shutcho-pdf-render-area';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:720px;background:#fff;pointer-events:none;visibility:hidden;z-index:-9999;';
+    document.body.appendChild(container);
+  }
+  container.innerHTML = html;
+  container.style.visibility = 'visible';
+
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳ 生成中...';
+
+  setTimeout(() => {
+    html2canvas(document.getElementById('shutcho-pdf-root'), {
+      scale: 3, useCORS: true, backgroundColor: '#ffffff', windowWidth: 720
+    }).then(canvas => {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+      const imgW = 190;
+      const imgH = canvas.height * imgW / canvas.width;
+      const pageH = 277;
+      if (imgH > pageH) {
+        const sc = pageH / imgH;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, imgW * sc, pageH);
+      } else {
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, imgW, imgH);
+      }
+      pdf.save(`経費明細書_${today}.pdf`);
+      if(editingAppId) markPrinted(editingAppId);
+      container.style.visibility = 'hidden';
+      btn.disabled = false; btn.innerHTML = '🖨️ PDF出力';
+    }).catch(err => {
+      console.error(err);
+      alert('PDF生成エラー: ' + err.message);
+      container.style.visibility = 'hidden';
+      btn.disabled = false; btn.innerHTML = '🖨️ PDF出力';
+    });
+  }, 150);
+}
+
+// ══════════════════════════════════════════════
+// EXCEL出力（交際費精算書）
+// ══════════════════════════════════════════════
+// 交際費精算書1件分のHTMLを生成するヘルパー
+function makeKosaiHtml(receipt, dept, name, af) {
+  const r = receipt;
+  const rAmt = Number(r.amount||0);
+  const paxStr = `合計　${r.totalPax||''}名　（うち当社　${r.ourPax||''}　名）`;
+  const participants = (r.participants||'').trim();
+  const storeText = [r.store, r.address].filter(Boolean).join('\n');
+  const TD_LBL = 'border:1px solid #000;background:#f0f0f0;padding:4mm 3mm;vertical-align:middle;font-size:9pt;font-weight:bold;width:44mm;';
+  const TD_VAL = 'border:1px solid #000;padding:4mm 5mm;vertical-align:middle;text-align:center;font-size:10pt;';
+  return `<div class="kosai-page" style="width:190mm;padding:10mm 12mm;margin:0;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:10pt;color:#000;background:#fff;box-sizing:border-box;">
+  <div style="text-align:right;font-size:9.5pt;margin-bottom:5mm;">${af}</div>
+  <div style="display:flex;align-items:flex-start;margin-bottom:7mm;">
+    <div style="flex:1;text-align:center;font-size:20pt;font-weight:bold;letter-spacing:0.3em;padding-top:1mm;">交　際　費　精　算　書</div>
+    <div style="width:24mm;margin-left:3mm;flex-shrink:0;border:1.5px solid #000;height:24mm;text-align:center;padding-top:2mm;font-size:8pt;">担当者印</div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:6mm;">
+    <tr style="height:13mm;">
+      <td style="border:1px solid #000;background:#f0f0f0;width:18mm;text-align:center;vertical-align:middle;font-weight:bold;padding:2mm;">申請者</td>
+      <td style="border:1px solid #000;background:#f0f0f0;width:14mm;text-align:center;vertical-align:middle;font-weight:bold;padding:2mm;">所属</td>
+      <td style="border:1px solid #000;width:62mm;text-align:center;vertical-align:middle;padding:2mm 4mm;">${dept}</td>
+      <td style="border:1px solid #000;background:#f0f0f0;width:14mm;text-align:center;vertical-align:middle;font-weight:bold;padding:2mm;">氏名</td>
+      <td style="border:1px solid #000;text-align:center;vertical-align:middle;padding:2mm 4mm;">${name}</td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:6mm;">
+    <colgroup><col style="width:44mm"><col></colgroup>
+    <tr style="height:14mm;">
+      <td style="${TD_LBL}">飲食等のあった年月日</td>
+      <td style="${TD_VAL}">${(r.date||'').replace(/-/g,'/')}</td>
+    </tr>
+    <tr>
+      <td style="${TD_LBL}font-size:8.5pt;font-weight:normal;">飲食等に参加した<br>得意先等の名称及び<br>参加者の氏名</td>
+      <td style="border:1px solid #000;padding:5mm 6mm;vertical-align:middle;text-align:center;"><div style="white-space:pre-line;line-height:2.0;font-size:10pt;">${participants}</div></td>
+    </tr>
+    <tr style="height:14mm;">
+      <td style="${TD_LBL}">当社との関係</td>
+      <td style="${TD_VAL}">${r.relation||''}</td>
+    </tr>
+    <tr style="height:14mm;">
+      <td style="${TD_LBL}">参加者の数</td>
+      <td style="${TD_VAL}">${paxStr}</td>
+    </tr>
+    <tr style="height:14mm;">
+      <td style="${TD_LBL}">費用の金額</td>
+      <td style="border:1px solid #000;text-align:center;vertical-align:middle;font-size:14pt;font-weight:bold;padding:2mm;">${rAmt.toLocaleString()}円</td>
+    </tr>
+    <tr>
+      <td style="${TD_LBL}">飲食店等の名称と所在地</td>
+      <td style="border:1px solid #000;padding:5mm 6mm;vertical-align:middle;text-align:center;"><div style="white-space:pre-line;line-height:2.0;font-size:10pt;">${storeText}</div></td>
+    </tr>
+    <tr>
+      <td rowspan="3" style="border:1px solid #000;background:#f0f0f0;padding:3mm;vertical-align:middle;text-align:center;font-size:9pt;font-weight:bold;width:44mm;">その他参考となるべき事項</td>
+      <td style="border:1px solid #000;height:16mm;padding:3mm 5mm;vertical-align:middle;">${r.notes||''}</td>
+    </tr>
+    <tr><td style="border:1px solid #000;height:16mm;"></td></tr>
+    <tr><td style="border:1px solid #000;height:16mm;"></td></tr>
+  </table>
+  <div style="margin-top:5mm;">
+    <table style="width:100%;border-collapse:collapse;font-size:10pt;">
+      <tr style="height:14mm;">
+        <td style="border:1px solid #000;background:#f0f0f0;width:26mm;text-align:center;vertical-align:middle;font-weight:bold;padding:2mm;">精算金額</td>
+        <td style="border:1px solid #000;width:46mm;text-align:center;vertical-align:middle;font-size:13pt;font-weight:bold;padding:2mm;">¥${rAmt.toLocaleString()}</td>
+        <td style="border:1px solid #000;background:#f0f0f0;width:16mm;text-align:center;vertical-align:middle;font-weight:bold;padding:2mm;">精算日</td>
+        <td style="border:1px solid #000;vertical-align:bottom;text-align:right;padding:3mm 4mm;font-size:9.5pt;min-width:22mm;">年</td>
+        <td style="border:1px solid #000;vertical-align:bottom;text-align:right;padding:3mm 4mm;font-size:9.5pt;min-width:22mm;">月</td>
+        <td style="border:1px solid #000;vertical-align:bottom;text-align:right;padding:3mm 4mm;font-size:9.5pt;min-width:22mm;">日</td>
+      </tr>
+    </table>
+    <div style="display:flex;justify-content:flex-end;margin-top:3mm;">
+      <div style="width:24mm;border:1.5px solid #000;height:24mm;text-align:center;padding-top:2mm;font-size:8pt;">受領印</div>
+    </div>
+  </div>
+</div>`;
+}
+
+function dlKosaiPDF() {
+  if (!window.html2canvas || !window.jspdf) {
+    alert('ライブラリが読み込まれていません。\nネット接続を確認してページを再読み込みしてください。'); return;
+  }
+  const entList = receipts.filter(r => r.cat === '交際費（会食）');
+  if (entList.length === 0) { alert('交際費の領収書がありません'); return; }
+  const dept      = document.getElementById('s1-dept').value;
+  const name      = document.getElementById('s1-name').value;
+  const applyDate = (document.getElementById('s1-apply-date')||{value:''}).value;
+  const today     = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const af        = applyDate ? applyDate.replace(/-/g,'/') : today.slice(0,4)+'/'+today.slice(4,6)+'/'+today.slice(6,8);
+  // ── 以下は旧コードの削除のためのダミー（後続のhtml=で上書き） ──
+  const first     = entList[0];
+  const entAmt    = Number(first.amount||0);
+
+  // 全件分のHTMLを生成（各ページを個別divで包む）
+  // 全交際費領収書を1件1ページでPDF生成
+  const html = `<div id="kosai-pdf-root" style="width:190mm;background:#fff;">
+  ${entList.map(r => makeKosaiHtml(r, dept, name, af)).join('')}
+</div>`;
+
+  // 非表示レンダリングエリアに挿入
+  let container = document.getElementById('pdf-render-area');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'pdf-render-area';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:174mm;background:#fff;pointer-events:none;visibility:hidden;z-index:-9999;';
+    document.body.appendChild(container);
+  }
+  container.innerHTML = html;
+  container.style.visibility = 'visible';
+
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳ 生成中...';
+
+  setTimeout(async () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+      const pages = container.querySelectorAll('.kosai-page');
+      for (let i = 0; i < pages.length; i++) {
+        const canvas = await html2canvas(pages[i], {
+          scale: 3, useCORS: true, backgroundColor: '#ffffff', windowWidth: 720
+        });
+        if (i > 0) pdf.addPage();
+        const imgW = 174;
+        const imgH = canvas.height * imgW / canvas.width;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 18, 16, imgW, imgH);
+      }
+      pdf.save(`交際費精算書_${today}.pdf`);
+      if(editingAppId) markPrinted(editingAppId);
+      container.style.visibility = 'hidden';
+      btn.disabled = false; btn.innerHTML = '🖨️ PDF出力';
+    } catch(err) {
+      console.error(err);
+      alert('PDF生成エラー: ' + err.message);
+      container.style.visibility = 'hidden';
+      btn.disabled = false; btn.innerHTML = '🖨️ PDF出力';
+    }
+  }, 150);
+}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+
+// ══════════════════════════════════════════════
+// 保存・編集・申請管理
+// ══════════════════════════════════════════════
+
+function collectCurrentData() {
+  const existingApp = savedApplications.find(a => a.id === editingAppId);
+  const filename = (document.getElementById('s3-filename')||{value:''}).value.trim()
+    || existingApp?.filename || '未命名';
+  return {
+    id: editingAppId || Date.now(),
+    savedAt: new Date().toISOString(),
+    filename,
+    status: existingApp?.status || 'saved',  // saved / printed / settled
+    dept: document.getElementById('s1-dept').value,
+    name: document.getElementById('s1-name').value,
+    applyDate: document.getElementById('s1-apply-date').value,
+    hasShutcho: document.getElementById('shutcho-toggle').checked,
+    dest: (document.getElementById('s1-dest')||{value:''}).value,
+    nights: (document.getElementById('s1-nights')||{value:'1'}).value,
+    tStart: (document.getElementById('s1-start')||{value:''}).value,
+    tEnd: (document.getElementById('s1-end')||{value:''}).value,
+    purpose: (document.getElementById('s1-purpose')||{value:''}).value,
+    allowanceAmt,
+    receipts: JSON.parse(JSON.stringify(receipts)),
+    receiptIdSeq,
+  };
+}
+
+function confirmAndSave() {
+  const fnEl = document.getElementById('s3-filename');
+  if (!fnEl || !fnEl.value.trim()) {
+    fnEl.focus();
+    fnEl.style.borderColor = '#e55';
+    setTimeout(()=>fnEl.style.borderColor='', 2000);
+    alert('申請ファイル名を入力してください');
+    return;
+  }
+  const data = collectCurrentData();
+
+  // 既存を更新 or 新規追加
+  const idx = savedApplications.findIndex(a => a.id === data.id);
+  if (idx >= 0) {
+    savedApplications[idx] = data;
+  } else {
+    savedApplications.push(data);
+  }
+  editingAppId = data.id;
+  saveToLocalStorage();
+  saveToGAS(data).then(() => renderSavedList());
+
+  buildReport();
+  go('report');
+  renderSavedList();
+}
+
+function markPrinted(id) {
+  const app = savedApplications.find(a => a.id === id);
+  if (app) { app.status = 'printed'; renderSavedList(); }
+}
+
+function markSettled(id) {
+  const app = savedApplications.find(a => a.id === id);
+  if (app) { app.status = 'settled'; renderSavedList(); }
+}
+
+function setStatus(id, status) {
+  if (!isAdmin) { alert('ステータス変更は管理者のみ可能です'); renderSavedList(); return; }
+  const app = savedApplications.find(a => a.id === id);
+  if (app) {
+    app.status = status;
+    saveToLocalStorage();
+    updateStatusGAS(id, status);
+    renderSavedList();
+  }
+}
+
+function loadApplication(id) {
+  const data = savedApplications.find(a => a.id === id);
+  if (!data) return;
+  // 権限チェック：本人または管理者以外は編集不可
+  if (!canEdit(data)) {
+    alert('他の方の申請は編集できません');
+    return;
+  }
+  editingAppId = data.id;
+
+  // 基本情報を復元
+  document.getElementById('s1-dept').value = data.dept;
+  document.getElementById('s1-name').value = data.name;
+  document.getElementById('s1-apply-date').value = data.applyDate;
+
+  // 出張情報を復元
+  const tog = document.getElementById('shutcho-toggle');
+  tog.checked = data.hasShutcho;
+  toggleShutcho();
+  if (data.hasShutcho) {
+    const destEl = document.getElementById('s1-dest');
+    const nightsEl = document.getElementById('s1-nights');
+    const startEl = document.getElementById('s1-start');
+    const endEl = document.getElementById('s1-end');
+    const purposeEl = document.getElementById('s1-purpose');
+    if (destEl) destEl.value = data.dest || '';
+    if (nightsEl) nightsEl.value = data.nights || '1';
+    if (startEl) startEl.value = data.tStart || '';
+    if (endEl) endEl.value = data.tEnd || '';
+    if (purposeEl) purposeEl.value = data.purpose || '';
+  }
+  allowanceAmt = data.allowanceAmt || 0;
+  receipts = JSON.parse(JSON.stringify(data.receipts));
+  receiptIdSeq = data.receiptIdSeq;
+
+  calcAllowance();
+  go('step1');
+}
+
+function deleteApplication(id) {
+  const app = savedApplications.find(a => a.id === id);
+  if (!app) return;
+  if (!canEdit(app)) { alert('他の方の申請は削除できません'); return; }
+  if (!confirm('この申請を削除しますか？')) return;
+  savedApplications = savedApplications.filter(a => a.id !== id);
+  saveToLocalStorage();
+  deleteFromGAS(id);
+  renderSavedList();
+}
+
+function renderSavedList() {
+  const con = document.getElementById('saved-list-container');
+  if (!con) return;
+
+  // NAVバッジ更新
+  const navSaved = document.getElementById('nav-saved');
+  if (navSaved) {
+    const unsettled = savedApplications.filter(a => a.status !== 'settled').length;
+    const existing = navSaved.querySelector('.nav-badge');
+    if (savedApplications.length > 0) {
+      const badge = existing || document.createElement('span');
+      badge.className = 'nav-badge';
+      badge.textContent = savedApplications.length;
+      if (!existing) navSaved.appendChild(badge);
+    } else if (existing) { existing.remove(); }
+  }
+
+  if (savedApplications.length === 0) {
+    con.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px 0;">保存された申請はありません</div>';
+    return;
+  }
+
+  const STATUS_LABEL = { saved:'保存済み', printed:'出力済', settled:'精算済' };
+  const STATUS_CLASS = { saved:'status-saved', printed:'status-printed', settled:'status-settled' };
+  const STATUS_ICON  = { saved:'📋', printed:'🖨️', settled:'✅' };
+
+  // 申請日の新しい順
+  const sorted = [...savedApplications].sort((a,b) => b.applyDate.localeCompare(a.applyDate));
+  con.innerHTML = '';
+
+  sorted.forEach(app => {
+    const entAmt = app.receipts.filter(r=>r.cat==='交際費（会食）').reduce((s,r)=>s+Number(r.amount||0),0);
+    const trvAmt = app.receipts.filter(r=>r.cat!=='交際費（会食）').reduce((s,r)=>s+Number(r.amount||0),0);
+    const grand  = entAmt + trvAmt + (app.allowanceAmt||0);
+    const dateStr = app.applyDate.replace(/-/g,'/');
+    const savedStr = new Date(app.savedAt).toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const st = app.status || 'saved';
+    const isEditing = editingAppId === app.id;
+    const fname = app.filename || '（名称なし）';
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.cssText = `margin-bottom:10px;${st==='settled'?'opacity:0.75;':''}`;
+    card.innerHTML = `
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="${STATUS_CLASS[st]}">${STATUS_ICON[st]} ${STATUS_LABEL[st]}</span>
+          ${isEditing ? '<span class="badge badge-ent" style="font-size:10px;">編集中</span>' : ''}
+          <span style="font-weight:700;font-size:13px;">${fname}</span>
+        </div>
+        <span style="font-size:10px;color:var(--text3);">${app.name}　申請日：${dateStr}　保存：${savedStr}</span>
+      </div>
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div>
+          ${app.hasShutcho ? `<span class="badge badge-trv" style="margin-right:4px;">✈️ ${app.dest||'出張あり'}</span>` : ''}
+          ${entAmt>0 ? `<span class="badge badge-ent" style="margin-right:4px;">🍽️ ¥${entAmt.toLocaleString()}</span>` : ''}
+          ${(trvAmt+(app.allowanceAmt||0))>0 ? `<span class="badge badge-trv">🚄 ¥${(trvAmt+(app.allowanceAmt||0)).toLocaleString()}</span>` : ''}
+          <div style="margin-top:6px;font-size:14px;font-weight:700;">合計：¥${grand.toLocaleString()}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;" id="card-actions-${app.id}">
+        </div>
+      </div>`;
+    con.appendChild(card);
+
+    // 権限別ボタンをJS側で生成（テンプレートリテラル内では canEdit() が評価できないため）
+    const actionsDiv = document.getElementById(`card-actions-${app.id}`);
+    const editable = canEdit(app);
+
+    // ステータス表示 / 変更
+    const stRow = document.createElement('div');
+    stRow.style.cssText = 'display:flex;align-items:center;gap:6px;';
+    if (isAdmin) {
+      stRow.innerHTML = `<span style="font-size:10px;color:var(--text3);">ステータス：</span>
+        <select class="status-select" onchange="setStatus(${app.id}, this.value)">
+          <option value="saved"   ${st==='saved'   ?'selected':''}>📋 保存済み</option>
+          <option value="printed" ${st==='printed' ?'selected':''}>🖨️ 出力済</option>
+          <option value="settled" ${st==='settled' ?'selected':''}>✅ 精算済</option>
+        </select>`;
+    } else {
+      stRow.innerHTML = `<span class="${STATUS_CLASS[st]}">${STATUS_ICON[st]} ${STATUS_LABEL[st]}</span>`;
+    }
+    actionsDiv.appendChild(stRow);
+
+    // アクションボタン行
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;';
+
+    // 帳票出力・詳細確認は全員OK
+    const btnDetail = document.createElement('button');
+    btnDetail.className = 'btn btn-sm btn-secondary';
+    btnDetail.innerHTML = '🔍 詳細';
+    btnDetail.onclick = () => {
+      loadApplicationReadOnly(app.id);
+      buildStep3();
+      go('step3');
+    };
+    btnRow.appendChild(btnDetail);
+
+    const btnPrint = document.createElement('button');
+    btnPrint.className = 'btn btn-sm';
+    btnPrint.style.cssText = 'background:var(--blue-lt);color:var(--blue);border:1px solid #b6d0f5;';
+    btnPrint.innerHTML = '🖨️ 帳票出力';
+    btnPrint.onclick = () => loadAndShowReport(app.id);
+    btnRow.appendChild(btnPrint);
+
+    // 編集・削除は本人 or 管理者のみ
+    if (editable) {
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn btn-sm btn-secondary';
+      btnEdit.innerHTML = '✏️ 編集';
+      btnEdit.onclick = () => loadApplication(app.id);
+      btnRow.appendChild(btnEdit);
+
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn btn-sm';
+      btnDel.style.cssText = 'background:#fff0f0;color:#c00;border:1px solid #fcc;';
+      btnDel.innerHTML = '🗑️ 削除';
+      btnDel.onclick = () => deleteApplication(app.id);
+      btnRow.appendChild(btnDel);
+    }
+    actionsDiv.appendChild(btnRow);
+  });
+}
+
+// 閲覧・帳票出力専用（権限チェックなし・編集状態を変えない）
+function loadApplicationReadOnly(id) {
+  const data = savedApplications.find(a => a.id === id);
+  if (!data) return;
+  // editingAppId は変更しない（自分の申請の編集状態を保持）
+  const prevEditingId = editingAppId;
+
+  document.getElementById('s1-dept').value = data.dept;
+  document.getElementById('s1-name').value = data.name;
+  document.getElementById('s1-apply-date').value = data.applyDate;
+  const tog = document.getElementById('shutcho-toggle');
+  tog.checked = data.hasShutcho;
+  toggleShutcho();
+  if (data.hasShutcho) {
+    const destEl = document.getElementById('s1-dest');
+    const nightsEl = document.getElementById('s1-nights');
+    const startEl = document.getElementById('s1-start');
+    const endEl = document.getElementById('s1-end');
+    const purposeEl = document.getElementById('s1-purpose');
+    if (destEl) destEl.value = data.dest || '';
+    if (nightsEl) nightsEl.value = data.nights || '1';
+    if (startEl) startEl.value = data.tStart || '';
+    if (endEl) endEl.value = data.tEnd || '';
+    if (purposeEl) purposeEl.value = data.purpose || '';
+  }
+  allowanceAmt = data.allowanceAmt || 0;
+  receipts = JSON.parse(JSON.stringify(data.receipts));
+  receiptIdSeq = data.receiptIdSeq || 0;
+  calcAllowance();
+
+  editingAppId = prevEditingId; // 元の編集状態に戻す
+}
+
+function loadAndShowReport(id) {
+  const data = savedApplications.find(a => a.id === id);
+  if (!data) return;
+  const isOwner = canEdit(data);
+  if (isOwner) {
+    // 本人・管理者：通常通り編集状態で読み込み
+    loadApplication(id);
+  } else {
+    // 他人の申請：閲覧専用で読み込み
+    loadApplicationReadOnly(id);
+  }
+  setTimeout(() => { buildReport(); go('report'); }, 100);
+}
+
+function _doReset(){
+  receipts=[]; receiptIdSeq=0; allowanceAmt=0; editingAppId=null;
+  document.getElementById('shutcho-toggle').checked=false;
+  document.getElementById('shutcho-section').style.display='none';
+  document.getElementById('toggle-label').textContent='出張なし（交際費・一般経費のみ）';
+  document.getElementById('allowance-result').style.display='none';
+  // 基本情報フィールドをクリア
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('s1-apply-date').value=today;
+  document.getElementById('s1-name').value='';
+  // 出張関連フィールドをクリア
+  const destEl=document.getElementById('s1-dest');
+  if(destEl) destEl.value='';
+  const startEl=document.getElementById('s1-start');
+  if(startEl) startEl.value='';
+  const endEl=document.getElementById('s1-end');
+  if(endEl) endEl.value='';
+  const purposeEl=document.getElementById('s1-purpose');
+  if(purposeEl) purposeEl.value='';
+  const nightsEl=document.getElementById('s1-nights');
+  if(nightsEl) nightsEl.value='1';
+  const fnEl=document.getElementById('s3-filename');
+  if(fnEl) fnEl.value='';
+  renderReceipts();
+}
+
+function resetAll(){
+  if(!confirm('入力内容をリセットしますか？')) return;
+  _doReset();
+  go('step1');
+}
+
+function goHomeAndReset(){
+  _doReset();
+  go('home');
+}
+
+function goNewApplication(){
+  _doReset();
+  go('step1');
+}
+
+// ══════════════════════════════════════════════
+// ログイン / ログアウト
+// ══════════════════════════════════════════════
+function doLogin() {
+  const name = document.getElementById('login-name').value;
+  const adminCheck = document.getElementById('login-is-admin').checked;
+  const adminPass = document.getElementById('login-admin-pass').value;
+  const errEl = document.getElementById('login-error');
+
+  if (!name) { errEl.textContent = '名前を選択してください'; errEl.style.display='block'; return; }
+  if (adminCheck && adminPass !== ADMIN_PASSWORD) {
+    errEl.textContent = '管理者パスワードが正しくありません'; errEl.style.display='block'; return;
+  }
+  errEl.style.display = 'none';
+
+  currentUser = name;
+  isAdmin = adminCheck && adminPass === ADMIN_PASSWORD;
+
+  // サイドバー更新
+  const short = name.replace(/　/g,'').slice(0,2);
+  document.getElementById('sidebar-av').textContent = short;
+  document.getElementById('sidebar-name').textContent = name;
+  document.getElementById('sidebar-role').textContent = isAdmin ? '👑 管理者' : '十勝発信事業部';
+
+  // ホーム挨拶更新
+  const firstName = name.split('　')[1] || name;
+  document.getElementById('home-greeting').textContent = `こんにちは、${firstName}さん 👋`;
+
+  // STEP1の氏名をセット
+  document.getElementById('s1-name').value = name;
+
+  // GASからデータ読み込み
+  syncFromGAS();
+  go('home');
+}
+
+function doLogout() {
+  if (!confirm('ログアウトしますか？')) return;
+  currentUser = null; isAdmin = false;
+  savedApplications = [];
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-admin-pass').value = '';
+  document.getElementById('login-is-admin').checked = false;
+  document.getElementById('admin-pass-wrap').style.display = 'none';
+  renderSavedList();
+  go('login');
+}
+
+// ══════════════════════════════════════════════
+// GAS 連携（保存・読込・削除・ステータス更新）
+// ══════════════════════════════════════════════
+// POST: no-corsモードで送信（file://からGASへの唯一の方法）
+async function gasPost(payload) {
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify(payload),
+      headers: {'Content-Type':'text/plain'}
+    });
+    return {ok: true}; // no-corsはレスポンスが読めないため固定でok
+  } catch(e) {
+    console.warn('gasPost error:', e);
+    return {ok: false};
+  }
+}
+
+// GET: JSONPで取得（file://からのGET CORS回避）
+function syncFromGAS() {
+  if (isSyncing) return;
+  isSyncing = true;
+  showSyncStatus('⏳ データを同期中...');
+
+  // 既存のJSONPタグを削除
+  const oldScript = document.getElementById('gas-jsonp');
+  if (oldScript) oldScript.remove();
+
+  // コールバック関数を定義
+  const cbName = 'gasCallback_' + Date.now();
+  window[cbName] = function(json) {
+    try {
+      if (json && json.ok) {
+        savedApplications = json.data || [];
+        saveToLocalStorage();
+        renderSavedList();
+        showSyncStatus('✅ 同期完了');
+      } else {
+        showSyncStatus('⚠️ 同期エラー');
+        loadFromLocalStorage();
+        renderSavedList();
+      }
+    } catch(e) {
+      showSyncStatus('⚠️ エラー: ' + e.message);
+    } finally {
+      isSyncing = false;
+      setTimeout(()=>showSyncStatus(''), 3000);
+      delete window[cbName];
+    }
+  };
+
+  // タイムアウト処理（5秒）
+  const timer = setTimeout(() => {
+    if (window[cbName]) {
+      loadFromLocalStorage();
+      renderSavedList();
+      showSyncStatus('✅ 読み込み完了（ローカル）');
+      setTimeout(()=>showSyncStatus(''), 2000);
+      isSyncing = false;
+      delete window[cbName];
+    }
+  }, 5000);
+
+  // JSONPリクエスト
+  const script = document.createElement('script');
+  script.id = 'gas-jsonp';
+  script.src = GAS_URL + '?callback=' + cbName + '&t=' + Date.now();
+  script.onerror = () => {
+    clearTimeout(timer);
+    // エラーでもローカルデータで静かに継続（エラー表示しない）
+    loadFromLocalStorage();
+    renderSavedList();
+    showSyncStatus('✅ 読み込み完了');
+    setTimeout(()=>showSyncStatus(''), 2000);
+    isSyncing = false;
+    delete window[cbName];
+  };
+  document.head.appendChild(script);
+}
+
+function showSyncStatus(msg) {
+  let el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+async function saveToGAS(data) {
+  const payload = { ...data, action: 'save',
+    adminPass: isAdmin ? ADMIN_PASSWORD : '' };
+  try {
+    const res = await gasPost(payload);
+    if (res.ok) { saveToLocalStorage(); return true; }
+  } catch(e) {
+    console.warn('GAS save failed, saved locally only'); saveToLocalStorage();
+  }
+  return false;
+}
+
+async function deleteFromGAS(id) {
+  try {
+    await gasPost({ action:'delete', id, name: currentUser,
+      adminPass: isAdmin ? ADMIN_PASSWORD : '' });
+  } catch(e) { console.warn('GAS delete failed'); }
+}
+
+async function updateStatusGAS(id, status) {
+  try {
+    await gasPost({ action:'updateStatus', id, status,
+      adminPass: ADMIN_PASSWORD }); // ステータス変更は管理者のみ
+  } catch(e) { console.warn('GAS status update failed'); }
+}
+
+// ══════════════════════════════════════════════
+// 権限チェック
+// ══════════════════════════════════════════════
+function canEdit(app) {
+  if (isAdmin) return true;
+  return app.name === currentUser;
+}
+
+// ── localStorage 保存/読み込み ──
+const LS_KEY = 'keihiApp_savedApplications_v1';
+
+function saveToLocalStorage() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(savedApplications));
+  } catch(e) { console.warn('localStorage save failed:', e); }
+}
+
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) { savedApplications = parsed; }
+    }
+  } catch(e) { console.warn('localStorage load failed:', e); }
+}
+
+function exportJSON() {
+  const json = JSON.stringify(savedApplications, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `経費申請バックアップ_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed)) throw new Error('フォーマットエラー');
+      if (savedApplications.length > 0) {
+        if (!confirm(`現在${savedApplications.length}件の申請が保存されています。
+インポートしたデータと統合しますか？
+（OKで統合、キャンセルで上書き）`)) {
+          savedApplications = parsed;
+        } else {
+          // IDの重複を避けて統合
+          const existingIds = new Set(savedApplications.map(a=>a.id));
+          const newItems = parsed.filter(a => !existingIds.has(a.id));
+          savedApplications = [...savedApplications, ...newItems];
+        }
+      } else {
+        savedApplications = parsed;
+      }
+      saveToLocalStorage();
+      renderSavedList();
+      alert(`✅ ${savedApplications.length}件のデータを読み込みました`);
+    } catch(err) {
+      alert('読み込みに失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('s1-apply-date').value=today;
+  go('login');
+});
+</script>
+</body>
+</html>
