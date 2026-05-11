@@ -1248,12 +1248,10 @@ function dlShuchoPDF() {
     ? sectionC.map((it,i) => ROW(`C${i+1}`, it.date.replace(/-/g,'/'), it.amount, it.cat, it.note)).join('')
     : EMPTY();
 
-  const html = `<div id="shutcho-pdf-root" style="width:190mm;padding:10mm 12mm;margin:0;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:9pt;color:#000;background:#fff;box-sizing:border-box;">
-
+  // ヘッダー共通HTML
+  const headerHtml = `
   <div style="text-align:right;font-size:9pt;margin-bottom:3mm;">${af}</div>
   <div style="text-align:center;font-size:18pt;font-weight:bold;letter-spacing:0.3em;margin-bottom:5mm;">経　費　明　細　書</div>
-
-  <!-- ヘッダー情報 -->
   <table style="width:100%;border-collapse:collapse;font-size:9pt;margin-bottom:5mm;">
     <colgroup>
       <col style="width:16mm"><col style="width:54mm">
@@ -1278,25 +1276,39 @@ function dlShuchoPDF() {
         ¥${grand.toLocaleString()}　　（日当＋A＋B＋C）
       </td>
     </tr>
-  </table>
+  </table>`;
 
-  <!-- 明細テーブル -->
-  <table style="width:100%;border-collapse:collapse;font-size:8.5pt;">
-    ${COLGROUP}
-    ${nittou > 0 ? `${SH('日当')}${nittouRows}${SUBTOTAL(nittou, '日当')}${GAP()}` : ''}
-    ${SH('A　出張費（交通費・宿泊費）')}
-    ${aRows}
-    ${SUBTOTAL(trvAmt, 'A')}
-    ${GAP()}
-    ${SH('B　交際費（会食・接待）')}
-    ${bRows}
-    ${SUBTOTAL(kosaiAmt, 'B')}
-    ${GAP()}
-    ${SH('C　その他経費')}
-    ${cRows}
-    ${SUBTOTAL(sonotaAmt, 'C')}
-  </table>
+  // セクションごとに個別divに分割（ページ境目をセクション単位にする）
+  const sections = [];
 
+  // 1ページ目：ヘッダー＋できるだけ多くのセクション
+  let page1 = `<table style="width:100%;border-collapse:collapse;font-size:8.5pt;">${COLGROUP}`;
+  if (nittou > 0) page1 += `${SH('日当')}${nittouRows}${SUBTOTAL(nittou, '日当')}${GAP()}`;
+  page1 += `${SH('A　出張費（交通費・宿泊費）')}${aRows}${SUBTOTAL(trvAmt, 'A')}</table>`;
+  sections.push({ isFirst: true, body: page1 });
+
+  // B・Cが空でなければセクション追加
+  const bSection = `<table style="width:100%;border-collapse:collapse;font-size:8.5pt;">${COLGROUP}${SH('B　交際費（会食・接待）')}${bRows}${SUBTOTAL(kosaiAmt, 'B')}</table>`;
+  const cSection = `<table style="width:100%;border-collapse:collapse;font-size:8.5pt;">${COLGROUP}${SH('C　その他経費')}${cRows}${SUBTOTAL(sonotaAmt, 'C')}</table>`;
+
+  // B・Cは行数に応じて同じページか別ページか判断（20行超なら分割）
+  const bLen = sectionB.length;
+  const cLen = sectionC.length;
+  if (bLen + cLen <= 15) {
+    // B・Cをまとめて1ページ
+    sections.push({ isFirst: false, body: bSection + '<div style="height:6mm;"></div>' + cSection });
+  } else {
+    sections.push({ isFirst: false, body: bSection });
+    sections.push({ isFirst: false, body: cSection });
+  }
+
+  const html = `<div id="shutcho-pdf-root" style="width:190mm;background:#fff;">
+  ${sections.map((s, i) => `
+    <div class="pdf-section" style="width:190mm;padding:10mm 12mm;box-sizing:border-box;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:9pt;color:#000;background:#fff;">
+      ${s.isFirst ? headerHtml : `<div style="font-size:8pt;color:#888;text-align:right;margin-bottom:3mm;">経費明細書　${name}（${af}）　${i+1}/${sections.length}ページ</div>`}
+      ${s.body}
+    </div>
+  `).join('')}
 </div>`;
 
   let container = document.getElementById('shutcho-pdf-render-area');
@@ -1316,37 +1328,17 @@ function dlShuchoPDF() {
     try {
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-      const pageW = 190; // mm（余白込み）
-      const pageH = 277; // mm（A4実効高さ）
-      const marginX = 10;
-      const marginY = 10;
-      const scale = 3;
-
-      // 全体をキャンバスに描画
-      const canvas = await html2canvas(document.getElementById('shutcho-pdf-root'), {
-        scale: scale, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794
-      });
-
-      const pxPerMm = canvas.width / pageW; // キャンバスpx / mm
-      const pageHpx = pageH * pxPerMm;       // 1ページ分の高さ(px)
-      const totalPages = Math.ceil(canvas.height / pageHpx);
-
-      for (let i = 0; i < totalPages; i++) {
+      // セクションごとに1ページとしてキャプチャ
+      const sectionEls = container.querySelectorAll('.pdf-section');
+      for (let i = 0; i < sectionEls.length; i++) {
         if (i > 0) pdf.addPage();
-        // 1ページ分を切り出す
-        const srcY = i * pageHpx;
-        const srcH = Math.min(pageHpx, canvas.height - srcY);
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = srcH;
-        const ctx = sliceCanvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-        ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-        const sliceH = srcH / pxPerMm; // 実際のmm高さ
-        pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', marginX, marginY, pageW, sliceH);
+        const canvas = await html2canvas(sectionEls[i], {
+          scale: 3, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794
+        });
+        const imgW = 190;
+        const imgH = canvas.height * imgW / canvas.width;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, imgW, imgH);
       }
-
       pdf.save(`経費明細書_${today}.pdf`);
       if(editingAppId) markPrinted(editingAppId);
       container.style.visibility = 'hidden';
