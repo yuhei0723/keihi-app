@@ -1030,10 +1030,12 @@ async function dlShutcho() {
   try {
     const D = window.docx;
     if (!D) { alert("docxライブラリ未読込。ネット接続を確認しページを再読み込みしてください。"); return; }
-    const trvList   = receipts.filter(r=>r.cat!=='交際費（会食）');
+    const trvList   = receipts.filter(r=>r.cat!=='交際費（会食）' && r.cat!=='その他経費' && r.cat!=='消耗品費');
     const kosaiList = receipts.filter(r=>r.cat==='交際費（会食）');
+    const sonotaList= receipts.filter(r=>r.cat==='その他経費' || r.cat==='消耗品費');
     const trvAmt    = trvList.reduce((s,r)=>s+Number(r.amount||0), 0);
     const kosaiAmt  = kosaiList.reduce((s,r)=>s+Number(r.amount||0), 0);
+    const sonotaAmt = sonotaList.reduce((s,r)=>s+Number(r.amount||0), 0);
     const hasShutcho= document.getElementById('shutcho-toggle').checked;
     const nittou    = hasShutcho ? allowanceAmt : 0;
     const grand     = trvAmt + nittou + kosaiAmt + sonotaAmt;
@@ -1091,7 +1093,10 @@ async function dlShutcho() {
       ...(kosaiList.length===0 ? [ER(),ER()] : []),
       SR(kosaiAmt,'B'), SP(),
       // ── C その他経費 ──
-      SH('C　その他経費','C8D8F0'), CH(), ER(), ER(), SR(0,'C'),
+      SH('C　その他経費','C8D8F0'), CH(),
+      ...sonotaList.map(r => DR(r.date||'', Number(r.amount||0), r.cat||'', r.store||'')),
+      ...(sonotaList.length===0 ? [ER()] : []),
+      SR(sonotaAmt,'C'),
     ];
 
     const table = new D.Table({
@@ -1298,7 +1303,7 @@ function dlShuchoPDF() {
   if (!container) {
     container = document.createElement('div');
     container.id = 'shutcho-pdf-render-area';
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:720px;background:#fff;pointer-events:none;visibility:hidden;z-index:-9999;';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;pointer-events:none;visibility:hidden;z-index:-9999;';
     document.body.appendChild(container);
   }
   container.innerHTML = html;
@@ -1455,12 +1460,12 @@ function dlKosaiPDF() {
       const pages = container.querySelectorAll('.kosai-page');
       for (let i = 0; i < pages.length; i++) {
         const canvas = await html2canvas(pages[i], {
-          scale: 3, useCORS: true, backgroundColor: '#ffffff', windowWidth: 720
+          scale: 3, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794
         });
         if (i > 0) pdf.addPage();
-        const imgW = 174;
+        const imgW = 190;
         const imgH = canvas.height * imgW / canvas.width;
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 18, 16, imgW, imgH);
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 8, imgW, imgH);
       }
       pdf.save(`交際費精算書_${today}.pdf`);
       if(editingAppId) markPrinted(editingAppId);
@@ -1869,16 +1874,19 @@ function doLogout() {
 // ══════════════════════════════════════════════
 // GAS 連携（保存・読込・削除・ステータス更新）
 // ══════════════════════════════════════════════
-// POST: no-corsモードで送信（file://からGASへの唯一の方法）
+// POST: GitHub Pages経由はCORS対応、file://はno-cors
 async function gasPost(payload) {
+  const isHttps = location.protocol === 'https:';
   try {
-    await fetch(GAS_URL, {
+    const opts = {
       method: 'POST',
-      mode: 'no-cors',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({...payload, token: ADMIN_PASSWORD + '_token'}),
       headers: {'Content-Type':'text/plain'}
-    });
-    return {ok: true}; // no-corsはレスポンスが読めないため固定でok
+    };
+    if (!isHttps) opts.mode = 'no-cors';
+    const res = await fetch(GAS_URL, opts);
+    if (!isHttps) return {ok: true}; // no-corsはレスポンス読めないため固定
+    return res.json();
   } catch(e) {
     console.warn('gasPost error:', e);
     return {ok: false};
@@ -1933,7 +1941,7 @@ function syncFromGAS() {
   // JSONPリクエスト
   const script = document.createElement('script');
   script.id = 'gas-jsonp';
-  script.src = GAS_URL + '?callback=' + cbName + '&t=' + Date.now();
+  script.src = GAS_URL + '?callback=' + cbName + '&token=' + encodeURIComponent(ADMIN_PASSWORD + '_token') + '&t=' + Date.now();
   script.onerror = () => {
     clearTimeout(timer);
     // エラーでもローカルデータで静かに継続（エラー表示しない）
