@@ -2407,8 +2407,7 @@ async function dlTripWord() {
       // 目的
       mkRow([L('目的',CM(3)), V(purpose,CM(15))], 1200),
       // 出張費見積もり
-      mkRow([L('出張費
-見積り',CM(3),estRows.length+1), mCell('', {size:15, width:CM(15), noBorder:true})]),
+      mkRow([L('出張費見積り',CM(3),estRows.length+1), mCell('', {size:15, width:CM(15), noBorder:true})]),
       ...estRows,
       mkRow([mCell('合計', {bold:true, size:16, shade:'DDDDDD', colSpan:1, width:CM(12), align:'right'}),
              mCell('¥' + estTotal.toLocaleString() + '円', {bold:true, size:17, colSpan:1, width:CM(6), align:'center'})]),
