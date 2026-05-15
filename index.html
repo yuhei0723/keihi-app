@@ -2497,25 +2497,22 @@ function dlTripPDF(event) {
       <col style="width:27mm">
       <col style="width:27mm">
     </colgroup>
-    <!-- 1行目：前払金ラベル（下線のみ）＋ 右側：斜線ボックス＋社長・専務・部長 -->
+    <!-- 1行目：前払金ラベル（下線のみ）＋ 社長・専務・部長 -->
     <tr style="height:10mm;">
       <td colspan="2" style="border:none;border-bottom:1px solid #000;font-size:9pt;padding-bottom:1mm;vertical-align:bottom;">
         <span style="text-decoration:underline;">前払金</span>
       </td>
-      <td rowspan="2" style="border:1px solid #000;overflow:hidden;position:relative;">
-        <svg width="100%" height="100%" viewBox="0 0 60 50" preserveAspectRatio="none" style="display:block;">
-          <line x1="0" y1="0" x2="60" y2="50" stroke="#000" stroke-width="1"/>
-        </svg>
-      </td>
+      <td style="border:none;"></td>
       <td style="border:1px solid #000;font-weight:bold;text-align:center;font-size:8.5pt;vertical-align:middle;">社長</td>
       <td style="border:1px solid #000;font-weight:bold;text-align:center;font-size:8.5pt;vertical-align:middle;">専務</td>
       <td style="border:1px solid #000;font-weight:bold;text-align:center;font-size:8.5pt;vertical-align:middle;">部長</td>
       <td style="border:none;"></td>
     </tr>
-    <!-- 2行目：金　-　円 ＋ 検印ラベル＋3空欄 -->
+    <!-- 2行目：金　　円 ＋ 検印ラベル＋3空欄 -->
     <tr style="height:18mm;">
       <td style="border:none;border-bottom:1px solid #000;font-size:9pt;vertical-align:middle;text-align:center;font-weight:bold;">金</td>
-      <td style="border:none;border-bottom:1px solid #000;font-size:9pt;vertical-align:middle;text-align:center;letter-spacing:2px;">　　　　　-　　　　　　円</td>
+      <td style="border:none;border-bottom:1px solid #000;font-size:9pt;vertical-align:middle;text-align:center;">　　　　　　　　　　円</td>
+      <td style="border:none;"></td>
       <td style="border:1px solid #000;font-weight:bold;text-align:center;font-size:9pt;vertical-align:middle;">検印</td>
       <td style="border:1px solid #000;"></td>
       <td style="border:1px solid #000;"></td>
