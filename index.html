@@ -591,19 +591,13 @@ p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
           <div class="card">
             <div class="card-header"><span class="card-title">💴 出張費見積もり</span></div>
             <div class="card-body">
-              <div class="gr2">
-                <div class="fg"><label class="fl">交通費（概算）</label>
-                  <input type="number" id="trip-est-travel" class="fc" placeholder="0" oninput="calcTripEstTotal()"></div>
-                <div class="fg"><label class="fl">宿泊費（概算）</label>
-                  <input type="number" id="trip-est-hotel" class="fc" placeholder="0" oninput="calcTripEstTotal()"></div>
-                <div class="fg"><label class="fl">会食費（概算）</label>
-                  <input type="number" id="trip-est-ent" class="fc" placeholder="0" oninput="calcTripEstTotal()"></div>
-                <div class="fg"><label class="fl">その他（概算）</label>
-                  <input type="number" id="trip-est-other" class="fc" placeholder="0" oninput="calcTripEstTotal()"></div>
+              <div class="fg">
+                <label class="fl">費用の内訳（フリーテキスト）</label>
+                <textarea id="trip-est-text" class="fc" rows="4" placeholder="例：航空券 ¥22,010＋¥17,990&#10;宿泊 大阪：¥15,300(2泊)、東京：¥30,411(3泊)&#10;移動費 ¥14,720&#10;手土産 ¥5,000(1,000x5件)"></textarea>
               </div>
-              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:13px;color:var(--text2);">合計見積もり</span>
-                <span style="font-size:18px;font-weight:700;font-family:'IBM Plex Mono',monospace;" id="trip-est-total">¥0</span>
+              <div class="fg" style="margin-bottom:0;">
+                <label class="fl">合計金額</label>
+                <input type="number" id="trip-est-total-val" class="fc" placeholder="105431">
               </div>
             </div>
           </div>
@@ -2347,6 +2341,15 @@ function dlTripPDF(event) {
 
   if (!name) { alert('氏名を選択してください'); return; }
 
+  // スタイル定数（先に定義）
+  const B = 'border:1px solid #000;';
+  const TLB = B+'background:#e8e8e8;font-weight:bold;text-align:center;vertical-align:middle;padding:2mm 3mm;font-size:9pt;';
+  const TVL = B+'vertical-align:middle;padding:2mm 3mm;font-size:9pt;';
+  const TD2 = B+'vertical-align:middle;padding:2mm 3mm;font-size:9pt;text-align:center;width:35mm;';
+  const TD3 = B+'vertical-align:middle;padding:2mm 3mm;font-size:9pt;';
+  const TSUB = B+'background:#eeeeee;text-align:center;vertical-align:middle;padding:2mm 2mm;font-size:9pt;';
+  const TAMT = B+'text-align:right;vertical-align:middle;padding:2mm 3mm;font-size:9pt;font-family:monospace;';
+
   // 日程HTML行生成
   const schedHtml = tripSchedules.length > 0
     ? tripSchedules.map(s => `
@@ -2364,97 +2367,113 @@ function dlTripPDF(event) {
         <td style="${TAMT}">${val>0?'¥'+val.toLocaleString():''}</td>
       </tr>`).join('');
 
-  // スタイル定数
-  const B = 'border:1px solid #000;';
-  const TLB = B+'background:#e8e8e8;font-weight:bold;text-align:center;vertical-align:middle;padding:2mm 3mm;font-size:9pt;';
-  const TVL = B+'vertical-align:middle;padding:2mm 3mm;font-size:9pt;';
-  const TD2 = B+'vertical-align:middle;padding:2mm 3mm;font-size:9pt;text-align:center;width:35mm;';
-  const TD3 = B+'vertical-align:middle;padding:2mm 3mm;font-size:9pt;';
-  const TSUB = B+'background:#eeeeee;text-align:center;vertical-align:middle;padding:2mm 2mm;font-size:9pt;';
-  const TAMT = B+'text-align:right;vertical-align:middle;padding:2mm 3mm;font-size:9pt;font-family:monospace;';
+  // 申請日を年・月・日に分割
+  const afParts = apDate ? apDate.split('-') : ['','',''];
+  const afY = afParts[0] || '';
+  const afM = afParts[1] ? parseInt(afParts[1]).toString() : '';
+  const afD = afParts[2] ? parseInt(afParts[2]).toString() : '';
+
+  // 出張費テキスト・合計
+  const estText = (document.getElementById('trip-est-text')||{value:''}).value;
+  const estTotalVal = Number((document.getElementById('trip-est-total-val')||{value:'0'}).value)||0;
+
+  // 日程：各行を「日付　内容」形式で1つのフリーテキスト領域に
+  const schedLines = tripSchedules.map(s => {
+    const d = s.date ? s.date.replace(/-/g,'/').replace(/^\d{4}\//, '') : ''; // 月/日のみ
+    return `${d}　　${s.content||''}`;
+  }).join('\n');
 
   const html = `<div id="trip-pdf-root" style="width:190mm;padding:12mm 14mm;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:9pt;color:#000;background:#fff;box-sizing:border-box;">
 
-  <div style="text-align:center;font-size:20pt;font-weight:bold;letter-spacing:0.5em;margin-bottom:6mm;">出　張　予　定　表</div>
+  <div style="text-align:center;font-size:20pt;font-weight:bold;letter-spacing:0.5em;margin-bottom:4mm;">出　張　予　定　表</div>
 
-  <div style="text-align:right;font-size:9pt;margin-bottom:2mm;">申請日　${af}</div>
-  <div style="font-size:9pt;margin-bottom:4mm;">本件出張の予定を、下記の通り申し上げます。</div>
+  <!-- 申請日（右上・年月日形式） -->
+  <table style="width:100%;border-collapse:collapse;margin-bottom:2mm;">
+    <tr>
+      <td style="border:none;width:120mm;"></td>
+      <td style="border:none;font-size:9pt;text-align:right;white-space:nowrap;">
+        申請日&nbsp;&nbsp;${afY}&nbsp;年&nbsp;&nbsp;${afM}&nbsp;月&nbsp;&nbsp;${afD}&nbsp;日
+      </td>
+    </tr>
+  </table>
+  <div style="font-size:9pt;margin-bottom:3mm;">本件出張の予定を、下記の通り申し上げます。</div>
+  <div style="height:3mm;"></div>
 
-  <table style="width:100%;border-collapse:collapse;font-size:9pt;margin-bottom:0;">
+  <table style="width:100%;border-collapse:collapse;font-size:9pt;table-layout:fixed;">
     <colgroup>
-      <col style="width:28mm">
-      <col style="width:28mm">
-      <col style="width:90mm">
-      <col style="width:26mm">
+      <col style="width:22mm"><col style="width:20mm"><col style="width:80mm"><col style="width:20mm"><col style="width:30mm">
     </colgroup>
 
-    <!-- 出張者行 -->
+    <!-- 出張者 -->
     <tr style="height:10mm;">
       <td style="${TLB}">出張者</td>
       <td style="${TLB}">所属</td>
       <td style="${TVL}">${dept}</td>
       <td style="${TLB}">氏名</td>
-    </tr>
-    <tr style="height:8mm;">
-      <td style="border:none;"></td>
-      <td style="border:none;"></td>
       <td style="${TVL}">${name}</td>
-      <td style="border:none;"></td>
     </tr>
 
     <!-- 同行者 -->
     <tr style="height:9mm;">
-      <td colspan="1" style="${TLB}">同行者</td>
+      <td colspan="2" style="${TLB}">同行者</td>
       <td colspan="3" style="${TVL}"></td>
     </tr>
 
     <!-- 出張先住所 -->
     <tr style="height:9mm;">
-      <td style="${TLB}">出張先住所</td>
+      <td colspan="2" style="${TLB}">出張先住所</td>
       <td colspan="3" style="${TVL}">${dest}</td>
     </tr>
 
     <!-- 訪問先 -->
     <tr style="height:9mm;">
-      <td style="${TLB}">訪問先</td>
+      <td colspan="2" style="${TLB}padding-left:5mm;">訪問先</td>
       <td colspan="3" style="${TVL}">${visitor}</td>
     </tr>
 
     <!-- 期間 -->
-    <tr style="height:9mm;">
-      <td rowspan="2" style="${TLB}vertical-align:middle;">期間</td>
-      <td colspan="3" style="${TVL}">自　${startF}　〜　至　${endF}</td>
-    </tr>
-    <tr style="height:7mm;">
-      <td colspan="3" style="${TVL}">（${daysN}泊${daysN+1}日）</td>
+    <tr style="height:10mm;">
+      <td colspan="2" style="${TLB}letter-spacing:3px;">期　間</td>
+      <td colspan="3" style="${TVL}font-size:9pt;">
+        自&nbsp;&nbsp;${startF.replace(/\//g,'&nbsp;年&nbsp;').replace(/\//g,'&nbsp;月&nbsp;')}&nbsp;日
+        &nbsp;&nbsp;〜&nbsp;&nbsp;
+        至&nbsp;&nbsp;${endF.replace(/\//g,'&nbsp;年&nbsp;').replace(/\//g,'&nbsp;月&nbsp;')}&nbsp;日
+      </td>
     </tr>
 
     <!-- 目的 -->
-    <tr style="min-height:28mm;">
-      <td style="${TLB}vertical-align:middle;">目　的</td>
-      <td colspan="3" style="${TVL}white-space:pre-wrap;min-height:28mm;">${purpose||''}</td>
+    <tr>
+      <td colspan="2" style="${TLB}vertical-align:middle;letter-spacing:3px;">目　的</td>
+      <td colspan="3" style="${TVL}white-space:pre-wrap;padding:3mm;min-height:32mm;">${purpose||''}</td>
     </tr>
 
-    <!-- 出張費見積もり -->
-    <tr style="height:8mm;">
-      <td rowspan="${estData.length+2}" style="${TLB}vertical-align:middle;">出張費<br>見積り</td>
-      <td colspan="3" style="border:none;height:3mm;"></td>
-    </tr>
-    ${estHtml}
-    <tr style="height:9mm;">
-      <td style="${TLB}font-size:9pt;">合計</td>
-      <td colspan="2" style="${B}font-weight:bold;font-size:10pt;text-align:center;vertical-align:middle;padding:2mm;">¥${estTotal.toLocaleString()}円</td>
+    <!-- 出張費見積もり（フリーテキスト＋合計） -->
+    <tr>
+      <td colspan="2" style="${TLB}vertical-align:middle;">出張費<br>見積り</td>
+      <td colspan="3" style="border:none;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="${TVL}white-space:pre-wrap;padding:3mm;">${estText}</td>
+          </tr>
+          <tr style="height:9mm;">
+            <td style="${B}display:flex;justify-content:flex-end;align-items:center;gap:0;">
+              <span style="background:#e8e8e8;font-weight:bold;padding:2mm 4mm;border-right:1px solid #000;">合計</span>
+              <span style="padding:2mm 4mm;font-weight:bold;font-size:10pt;min-width:40mm;text-align:right;">¥${estTotalVal.toLocaleString()}円</span>
+            </td>
+          </tr>
+        </table>
+      </td>
     </tr>
 
-    <!-- 日程 -->
-    <tr style="height:8mm;">
-      <td rowspan="${tripSchedules.length + 2}" style="${TLB}vertical-align:middle;">日　程</td>
-      <td colspan="3" style="border:none;height:3mm;"></td>
+    <!-- 日程（フリーテキスト＋末尾「以上」） -->
+    <tr>
+      <td colspan="2" style="${TLB}vertical-align:middle;letter-spacing:3px;">日　程</td>
+      <td colspan="3" style="${TVL}padding:3mm;white-space:pre-wrap;min-height:45mm;">${schedLines}<div style="text-align:right;margin-top:2mm;">以上</div></td>
     </tr>
-    ${schedHtml}
+
     <!-- 別添資料 -->
     <tr style="height:9mm;">
-      <td style="${TLB}">別添資料</td>
+      <td colspan="2" style="${TLB}">別添資料</td>
       <td colspan="3" style="${TVL}">${notes||'—'}</td>
     </tr>
   </table>
@@ -2462,20 +2481,39 @@ function dlTripPDF(event) {
   <div style="height:5mm;"></div>
 
   <!-- 前払金・検印欄 -->
-  <table style="width:100%;border-collapse:collapse;font-size:9pt;">
+  <table style="width:100%;border-collapse:collapse;font-size:9pt;table-layout:fixed;">
     <colgroup>
-      <col style="width:28mm"><col style="width:55mm"><col style="width:28mm"><col style="width:61mm">
+      <col style="width:14mm">
+      <col style="width:46mm">
+      <col style="width:22mm">
+      <col style="width:27mm">
+      <col style="width:27mm">
+      <col style="width:27mm">
+      <col style="width:27mm">
     </colgroup>
-    <tr style="height:18mm;">
-      <td style="${TLB}font-size:9pt;">前払金</td>
-      <td style="${B}"></td>
-      <td style="${TLB}font-size:9pt;">検印</td>
-      <td style="${B}"></td>
+    <!-- 1行目：前払金ラベル（下線のみ）＋ 右側：斜線ボックス＋社長・専務・部長 -->
+    <tr style="height:10mm;">
+      <td colspan="2" style="border:none;border-bottom:1px solid #000;font-size:9pt;padding-bottom:1mm;vertical-align:bottom;">
+        <span style="text-decoration:underline;">前払金</span>
+      </td>
+      <td rowspan="2" style="border:1px solid #000;overflow:hidden;position:relative;">
+        <svg width="100%" height="100%" viewBox="0 0 60 50" preserveAspectRatio="none" style="display:block;">
+          <line x1="0" y1="0" x2="60" y2="50" stroke="#000" stroke-width="1"/>
+        </svg>
+      </td>
+      <td style="border:1px solid #000;font-weight:bold;text-align:center;font-size:8.5pt;vertical-align:middle;">社長</td>
+      <td style="border:1px solid #000;font-weight:bold;text-align:center;font-size:8.5pt;vertical-align:middle;">専務</td>
+      <td style="border:1px solid #000;font-weight:bold;text-align:center;font-size:8.5pt;vertical-align:middle;">部長</td>
+      <td style="border:none;"></td>
     </tr>
+    <!-- 2行目：金　-　円 ＋ 検印ラベル＋3空欄 -->
     <tr style="height:18mm;">
-      <td style="${TLB}font-size:9pt;">金</td>
-      <td style="${B}text-align:center;vertical-align:bottom;padding-bottom:3mm;letter-spacing:2px;font-size:9pt;">　　　　　　　-　　　　　　　円</td>
-      <td colspan="2" style="border:none;"></td>
+      <td style="border:none;border-bottom:1px solid #000;font-size:9pt;vertical-align:middle;text-align:center;font-weight:bold;">金</td>
+      <td style="border:none;border-bottom:1px solid #000;font-size:9pt;vertical-align:middle;text-align:center;letter-spacing:2px;">　　　　　-　　　　　　円</td>
+      <td style="border:1px solid #000;font-weight:bold;text-align:center;font-size:9pt;vertical-align:middle;">検印</td>
+      <td style="border:1px solid #000;"></td>
+      <td style="border:1px solid #000;"></td>
+      <td style="border:none;"></td>
     </tr>
   </table>
 
