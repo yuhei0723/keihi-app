@@ -2385,55 +2385,107 @@ async function dlTripWord() {
         ]))
       : [mkRow([mCell('', {size:15, width:CM(4)}), mCell('', {size:15, width:CM(14)})])];
 
+    // 画像書式に合わせた列構成（4列 合計18cm）
+    // C0=ラベル(3.5cm) C1=費目ラベル(3cm) C2=値(8.5cm) C3=金額(3cm)
+    const C0=CM(3.5), C1=CM(3), C2=CM(8.5), C3=CM(3);
+    const LB = (t,rs,cs) => { // ラベルセル（グレー背景・中央）
+      const o={bold:true,size:16,shade:'D9D9D9',align:'center',width:C0};
+      if(rs) o.rowSpan=rs; if(cs) o.columnSpan=cs; return mCell(t,o); };
+    const SL = (t) => mCell(t,{size:15,shade:'EEEEEE',align:'center',width:C1}); // サブラベル
+    const VL = (t,cs,w) => { // 値セル
+      const o={size:15,align:'left',width:w||C2}; if(cs) o.columnSpan=cs; return mCell(t,o); };
+    const AM = (t) => mCell(t,{size:15,align:'right',width:C3}); // 金額セル
+    const BL = () => mCell('',{size:15,width:C2,noBorder:false}); // 空白
+
+    // 日程行：各行が「日付(C1+C2サイズ) | 内容(C3サイズ)」の2列
+    const schedRows2 = tripSchedules.length > 0
+      ? tripSchedules.map(s => mkRow([
+          mCell(s.date ? s.date.replace(/-/g,'/') : '', {size:15, width:C1+C2, columnSpan:2, align:'center'}),
+          mCell(s.content||'', {size:15, width:C3})
+        ]))
+      : [mkRow([mCell('',{size:15,width:C1+C2,columnSpan:2}), mCell('',{size:15,width:C3})])];
+
+    // 出張費見積もり行：常に4費目表示（0円でも表示）
+    const estAll = [
+      ['交通費', estTravel],
+      ['宿泊費', estHotel],
+      ['会食費', estEnt],
+      ['その他', estOther],
+    ];
+    const estRows2 = estAll.map(([label, val]) => mkRow([
+      SL(label),
+      AM(val>0 ? '¥'+val.toLocaleString() : ''),
+    ]));
+
     const rows = [
-      // タイトル
-      mkRow([mCell('出　張　予　定　表', {bold:true, size:28, align:'center', colSpan:4, width:TW, margins:{top:160,bottom:160,left:100,right:100}, noBorder:true})]),
-      // 申請日
-      mkRow([mCell('', {colSpan:3, width:CM(14), noBorder:true}), mCell(`申請日　${af}`, {size:15, width:CM(4), align:'right', noBorder:true})]),
-      // 説明文
+      // ① タイトル（中央・大きめ文字）
+      mkRow([mCell('出　張　予　定　表', {bold:true, size:32, align:'center', colSpan:4, width:TW, margins:{top:200,bottom:200,left:100,right:100}, noBorder:true})]),
+      // ② 申請日（右寄せ）
+      mkRow([
+        mCell('', {colSpan:3, width:C0+C1+C2, noBorder:true}),
+        mCell(`申請日　${af}`, {size:15, width:C3, align:'right', noBorder:true})
+      ]),
+      // ③ 説明文
       mkRow([mCell('本件出張の予定を、下記の通り申し上げます。', {size:15, colSpan:4, width:TW, noBorder:true})]),
+      mkRow([mCell('', {colSpan:4, width:TW, noBorder:true})], 100),
+      // ④ 出張者行（出張者|所属|所属値|氏名）
+      mkRow([
+        mCell('出張者', {bold:true, size:16, shade:'D9D9D9', align:'center', width:C0}),
+        mCell('所属',   {bold:true, size:16, shade:'D9D9D9', align:'center', width:C1}),
+        mCell(dept,     {size:15, align:'left', width:C2}),
+        mCell('氏名',   {bold:true, size:16, shade:'D9D9D9', align:'center', width:C3}),
+      ], 500),
+      // ⑤ 出張者2行目（空|空|氏名値）
+      mkRow([
+        mCell('', {size:15, width:C0, noBorder:true}),
+        mCell('', {size:15, width:C1, noBorder:true}),
+        mCell(name, {size:15, width:C2}),
+        mCell('',   {size:15, width:C3, noBorder:true}),
+      ], 400),
+      // ⑥ 同行者
+      mkRow([LB('同行者'), VL('', 3, C1+C2+C3)], 500),
+      // ⑦ 出張先住所
+      mkRow([LB('出張先住所'), VL(dest, 3, C1+C2+C3)], 500),
+      // ⑧ 訪問先
+      mkRow([LB('訪問先'), VL(visitor, 3, C1+C2+C3)], 500),
+      // ⑨ 期間（2行に渡る場合あり）
+      mkRow([LB('期間'), VL(`自　${startF}　〜　至　${endF}`, 3, C1+C2+C3)], 400),
+      mkRow([
+        mCell('', {size:15, width:C0, noBorder:true}),
+        VL(`（${nights}泊${parseInt(nights)+1}日）`, 3, C1+C2+C3),
+      ], 400),
+      // ⑩ 目的（高さ確保）
+      mkRow([LB('目　的'), VL(purpose, 3, C1+C2+C3)], 1400),
+      // ⑪ 出張費見積もり（左ラベル + 右側に費目・金額）
+      mkRow([LB('出張費見積り', estAll.length+2), mCell('', {size:15, width:C1+C2+C3, columnSpan:3, noBorder:true})]),
+      ...estRows2,
+      // ⑫ 合計行
+      mkRow([
+        mCell('合計', {bold:true, size:16, shade:'D9D9D9', align:'center', width:C1}),
+        mCell('¥'+estTotal.toLocaleString()+'円', {bold:true, size:17, align:'center', width:C2+C3, columnSpan:2}),
+      ]),
+      // ⑬ 日程（左ラベル + 右側に日付・内容）
+      mkRow([LB('日　程', schedRows2.length+1), mCell('', {size:15, width:C1+C2+C3, columnSpan:3, noBorder:true})]),
+      ...schedRows2,
+      // ⑭ 別添資料
+      mkRow([LB('別添資料'), VL(notes||'—', 3, C1+C2+C3)], 400),
       mkRow([mCell('', {colSpan:4, width:TW, noBorder:true})], 200),
-      // 出張者
-      mkRow([L('出張者',CM(3)), L('所属',CM(2)), V(dept,CM(6)), L('氏名',CM(7)), ]),
-      mkRow([mCell('',{colSpan:1,width:CM(3),noBorder:true}), mCell('',{colSpan:1,width:CM(2),noBorder:true}), V(name,CM(13))]),
-      // 同行者
-      mkRow([L('同行者',CM(3)), V('',CM(15))]),
-      // 出張先住所
-      mkRow([L('出張先住所',CM(3)), V(dest,CM(15))]),
-      // 訪問先
-      mkRow([L('訪問先',CM(3)), V(visitor,CM(15))]),
-      // 期間
-      mkRow([L('期間',CM(3)), V(`自 ${startF}　〜　至 ${endF}　（${nights}泊${parseInt(nights)+1}日）`,CM(15))]),
-      // 目的
-      mkRow([L('目的',CM(3)), V(purpose,CM(15))], 1200),
-      // 出張費見積もり
-      mkRow([L('出張費見積り',CM(3),estRows.length+1), mCell('', {size:15, width:CM(15), noBorder:true})]),
-      ...estRows,
-      mkRow([mCell('合計', {bold:true, size:16, shade:'DDDDDD', colSpan:1, width:CM(12), align:'right'}),
-             mCell('¥' + estTotal.toLocaleString() + '円', {bold:true, size:17, colSpan:1, width:CM(6), align:'center'})]),
-      // 日程
-      mkRow([L('日程',CM(3),scheduleRows.length), mCell('', {size:15, width:CM(15), noBorder:true})]),
-      ...scheduleRows,
-      // 別添資料
-      mkRow([L('別添資料',CM(3)), V(notes || '—',CM(15))]),
-      mkRow([mCell('', {colSpan:4, width:TW, noBorder:true})], 300),
-      // 検印欄
+      // ⑮ 前払金・検印欄（2行）
       mkRow([
-        mCell('前払金', {bold:true, size:16, shade:'D9D9D9', width:CM(4), align:'center'}),
-        mCell('', {size:15, width:CM(5)}),
-        mCell('検印', {bold:true, size:16, shade:'D9D9D9', width:CM(3), align:'center'}),
-        mCell('', {size:15, width:CM(6)}),
-      ], 1000),
+        mCell('前払金', {bold:true, size:16, shade:'D9D9D9', align:'center', width:C0+C1, columnSpan:2}),
+        mCell('',       {size:15, width:C2}),
+        mCell('検印',   {bold:true, size:16, shade:'D9D9D9', align:'center', width:C3}),
+      ], 800),
       mkRow([
-        mCell('金', {bold:true, size:16, shade:'D9D9D9', width:CM(1), align:'center'}),
-        mCell('　　　　　　-　　　　　　円', {size:16, width:CM(8)}),
-        mCell('', {colSpan:2, width:CM(9), noBorder:true}),
-      ], 1000),
+        mCell('金', {bold:true, size:16, shade:'D9D9D9', align:'center', width:C0}),
+        mCell('　　　　　　　-　　　　　　　円', {size:15, width:C1+C2, columnSpan:2}),
+        mCell('', {size:15, width:C3}),
+      ], 800),
     ];
 
     const table = new D.Table({
       width: {size:TW, type:'dxa'},
-      columnWidths: [CM(3),CM(3),CM(7),CM(5)],
+      columnWidths: [C0, C1, C2, C3],
       rows
     });
 
