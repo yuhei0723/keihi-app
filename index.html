@@ -2064,20 +2064,19 @@ async function gasPost(payload) {
   }
 }
 
-// GET: JSONPで取得（file://からのGET CORS回避）
-function syncFromGAS() {
+// GET: https(GitHub Pages)はfetch、file://はJSONPで取得
+async function syncFromGAS() {
   if (isSyncing) return;
   isSyncing = true;
   showSyncStatus('⏳ データを同期中...');
 
-  // 既存のJSONPタグを削除
-  const oldScript = document.getElementById('gas-jsonp');
-  if (oldScript) oldScript.remove();
+  const isHttps = location.protocol === 'https:';
 
-  // コールバック関数を定義
-  const cbName = 'gasCallback_' + Date.now();
-  window[cbName] = function(json) {
+  if (isHttps) {
+    // GitHub Pages等のhttps環境：通常のfetchを使用
     try {
+      const res = await fetch(GAS_URL + '?token=' + encodeURIComponent(ADMIN_PASSWORD + '_token') + '&t=' + Date.now());
+      const json = await res.json();
       if (json && json.ok) {
         savedApplications = json.data || [];
         saveToLocalStorage();
@@ -2089,41 +2088,63 @@ function syncFromGAS() {
         renderSavedList();
       }
     } catch(e) {
-      showSyncStatus('⚠️ エラー: ' + e.message);
+      showSyncStatus('⚠️ オフライン（ローカルデータを使用）');
+      loadFromLocalStorage();
+      renderSavedList();
     } finally {
       isSyncing = false;
       setTimeout(()=>showSyncStatus(''), 3000);
-      delete window[cbName];
     }
-  };
+  } else {
+    // file://環境：JSONPで取得
+    const oldScript = document.getElementById('gas-jsonp');
+    if (oldScript) oldScript.remove();
 
-  // タイムアウト処理（5秒）
-  const timer = setTimeout(() => {
-    if (window[cbName]) {
+    const cbName = 'gasCallback_' + Date.now();
+    window[cbName] = function(json) {
+      try {
+        if (json && json.ok) {
+          savedApplications = json.data || [];
+          saveToLocalStorage();
+          renderSavedList();
+          showSyncStatus('✅ 同期完了');
+        } else {
+          loadFromLocalStorage();
+          renderSavedList();
+        }
+      } catch(e) {
+        loadFromLocalStorage();
+        renderSavedList();
+      } finally {
+        isSyncing = false;
+        setTimeout(()=>showSyncStatus(''), 2000);
+        delete window[cbName];
+      }
+    };
+
+    const timer = setTimeout(() => {
+      if (window[cbName]) {
+        loadFromLocalStorage();
+        renderSavedList();
+        isSyncing = false;
+        delete window[cbName];
+      }
+    }, 5000);
+
+    const script = document.createElement('script');
+    script.id = 'gas-jsonp';
+    script.src = GAS_URL + '?callback=' + cbName + '&token=' + encodeURIComponent(ADMIN_PASSWORD + '_token') + '&t=' + Date.now();
+    script.onerror = () => {
+      clearTimeout(timer);
       loadFromLocalStorage();
       renderSavedList();
-      showSyncStatus('✅ 読み込み完了（ローカル）');
+      showSyncStatus('✅ 読み込み完了');
       setTimeout(()=>showSyncStatus(''), 2000);
       isSyncing = false;
       delete window[cbName];
-    }
-  }, 5000);
-
-  // JSONPリクエスト
-  const script = document.createElement('script');
-  script.id = 'gas-jsonp';
-  script.src = GAS_URL + '?callback=' + cbName + '&token=' + encodeURIComponent(ADMIN_PASSWORD + '_token') + '&t=' + Date.now();
-  script.onerror = () => {
-    clearTimeout(timer);
-    // エラーでもローカルデータで静かに継続（エラー表示しない）
-    loadFromLocalStorage();
-    renderSavedList();
-    showSyncStatus('✅ 読み込み完了');
-    setTimeout(()=>showSyncStatus(''), 2000);
-    isSyncing = false;
-    delete window[cbName];
-  };
-  document.head.appendChild(script);
+    };
+    document.head.appendChild(script);
+  }
 }
 
 function showSyncStatus(msg) {
