@@ -2371,13 +2371,7 @@ function dlTripPDF(event) {
       </tr>`).join('')
     : `<tr><td style="${TD2}"></td><td style="${TD3}"></td></tr>`;
 
-  // 出張費見積もりHTML行生成
-  const estData = [['交通費',estTravel],['宿泊費',estHotel],['会食費',estEnt],['その他',estOther]];
-  const estHtml = estData.map(([lbl,val]) => `
-      <tr>
-        <td style="${TSUB}">${lbl}</td>
-        <td style="${TAMT}">${val>0?'¥'+val.toLocaleString():''}</td>
-      </tr>`).join('');
+
 
   // 申請日を年・月・日に分割
   const afParts = apDate ? apDate.split('-') : ['','',''];
@@ -2606,11 +2600,8 @@ async function dlTripWord() {
     const purpose = document.getElementById('trip-purpose').value;
     const notes   = document.getElementById('trip-notes').value;
 
-    const estTravel = Number(document.getElementById('trip-est-travel').value)||0;
-    const estHotel  = Number(document.getElementById('trip-est-hotel').value)||0;
-    const estEnt    = Number(document.getElementById('trip-est-ent').value)||0;
-    const estOther  = Number(document.getElementById('trip-est-other').value)||0;
-    const estTotal  = estTravel + estHotel + estEnt + estOther;
+    const estTextW    = (document.getElementById('trip-est-text')||{value:''}).value;
+    const estTotalValW= Number((document.getElementById('trip-est-total-val')||{value:'0'}).value)||0;
 
     if (!name) { alert('氏名を選択してください'); return; }
     if (!start) { alert('出発日を入力してください'); return; }
@@ -2639,20 +2630,10 @@ async function dlTripWord() {
         ]))
       : [mkRow([mCell('', {size:15, width:CM(4)}), mCell('', {size:15, width:CM(14)})])];
 
-    // 費用見積もり行
-    const estItems = [
-      ['交通費', estTravel],
-      ['宿泊費', estHotel],
-      ['会食費', estEnt],
-      ['その他', estOther],
-    ].filter(([,v]) => v > 0);
-
-    const estRows = estItems.length > 0
-      ? estItems.map(([label, val]) => mkRow([
-          mCell(label, {size:15, width:CM(4), align:'center', shade:'EEEEEE'}),
-          mCell('¥' + val.toLocaleString(), {size:15, width:CM(14), align:'right'})
-        ]))
-      : [mkRow([mCell('', {size:15, width:CM(4)}), mCell('', {size:15, width:CM(14)})])];
+    // 費用見積もり（フリーテキスト）
+    const estRows = [mkRow([
+      mCell(estTextW, {size:15, width:CM(14), columnSpan:2})
+    ])];
 
     // 画像書式に合わせた列構成（4列 合計18cm）
     // C0=ラベル(3.5cm) C1=費目ラベル(3cm) C2=値(8.5cm) C3=金額(3cm)
@@ -2674,17 +2655,11 @@ async function dlTripWord() {
         ]))
       : [mkRow([mCell('',{size:15,width:C1+C2,columnSpan:2}), mCell('',{size:15,width:C3})])];
 
-    // 出張費見積もり行：常に4費目表示（0円でも表示）
-    const estAll = [
-      ['交通費', estTravel],
-      ['宿泊費', estHotel],
-      ['会食費', estEnt],
-      ['その他', estOther],
-    ];
-    const estRows2 = estAll.map(([label, val]) => mkRow([
-      SL(label),
-      AM(val>0 ? '¥'+val.toLocaleString() : ''),
-    ]));
+    // 出張費見積もり（フリーテキスト形式）
+    const estRows2 = [mkRow([
+      mCell(estTextW||'', {size:15, width:C1+C2+C3, columnSpan:3})
+    ])];
+    const estAll = []; // 互換性のため空配列
 
     const rows = [
       // ① タイトル（中央・大きめ文字）
