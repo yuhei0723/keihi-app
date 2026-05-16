@@ -2499,18 +2499,21 @@ function dlReportPDF(event) {
 
   const visitRowsHtml = visitsByDate.length > 0
     ? visitsByDate.map(group => {
-        const dateCell = `<td rowspan="${group.rows.length}" style="${TVC}text-align:center;width:20mm;font-weight:bold;border-right:1px solid #000;">
-          ${(group.rows[0].date||'').replace(/^\d{4}-/,'').replace(/-/,'/')}
-        </td>`;
+        const d = group.rows[0].date || '';
+        const dateParts = d.split('-');
+        const dateDisp = dateParts.length >= 3
+          ? (parseInt(dateParts[1])+'/'+parseInt(dateParts[2]))
+          : d;
+        const dateCell = `<td rowspan="${group.rows.length}" style="${TVC}text-align:center;width:20mm;font-weight:bold;border-right:1px solid #000;vertical-align:middle;">${dateDisp}</td>`;
         return group.rows.map((v, i) => `
-        <tr style="min-height:8mm;">
+        <tr style="height:16mm;">
           ${i === 0 ? dateCell : ''}
-          <td style="${TVC}text-align:center;width:16mm;">${v.time||''}</td>
-          <td style="${TVC}width:52mm;">${v.visitor||''}</td>
-          <td style="${TVL}">${v.content||''}</td>
+          <td style="${TVC}text-align:center;width:16mm;vertical-align:middle;">${v.time||''}</td>
+          <td style="${TVC}width:52mm;vertical-align:middle;">${v.visitor||''}</td>
+          <td style="border:1px solid #000;padding:2mm 3mm;font-size:8.5pt;vertical-align:top;min-width:40mm;">${v.content||''}</td>
         </tr>`).join('');
       }).join('')
-    : `<tr style="height:9mm;"><td style="${TVC}width:20mm;"></td><td style="${TVC}width:16mm;"></td><td style="${TVC}width:52mm;"></td><td style="${TVL}"></td></tr>`;
+    : `<tr style="height:16mm;"><td style="${TVC}width:20mm;"></td><td style="${TVC}width:16mm;"></td><td style="${TVC}width:52mm;"></td><td style="border:1px solid #000;padding:2mm 3mm;font-size:8.5pt;vertical-align:top;min-width:40mm;"></td></tr>`;
 
   // 宿泊行HTML（複数行対応）
   const hotelRows = (hotelDate||hotelName)
