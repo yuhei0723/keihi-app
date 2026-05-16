@@ -193,6 +193,7 @@ p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
     <div class="nav-item" onclick="go('home')"><span class="nav-icon">🏠</span> ホーム</div>
     <div class="nav-label">出張申請</div>
     <div class="nav-item" onclick="goNewTrip()"><span class="nav-icon">✈️</span> 出張申請書を作成</div>
+    <div class="nav-item" onclick="goNewReport()"><span class="nav-icon">📝</span> 出張報告書を作成</div>
     <div class="nav-label">経費精算</div>
     <div class="nav-item active" onclick="goNewApplication()"><span class="nav-icon">✏️</span> 経費申請入力</div>
     <div class="nav-label">帳票・管理</div>
@@ -505,6 +506,140 @@ p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
       </div>
     </div>
 
+    <!-- ══ 出張報告書 ══ -->
+    <div class="screen" id="screen-report-form">
+      <div class="screen-label">📝 出張報告書</div>
+      <h2 class="ttl">出張報告書を作成</h2>
+      <p class="desc">出張の結果を入力して報告書を出力してください。</p>
+
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;">
+        <div>
+          <!-- 基本情報 -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">👤 基本情報</span></div>
+            <div class="card-body">
+              <div class="gr3">
+                <div class="fg"><label class="fl">所属</label>
+                  <input type="text" id="rpt-dept" class="fc" value="十勝発信事業部" readonly style="background:var(--surface2);color:var(--text2);font-weight:600;"></div>
+                <div class="fg"><label class="fl">氏名<span class="req">*</span></label>
+                  <select id="rpt-name" class="fc">
+                    <option value="">— 選択 —</option>
+                    <option>牛膓　健司</option>
+                    <option>齋藤　祐平</option>
+                    <option>南岡　恭介</option>
+                    <option>田口　広河</option>
+                    <option>伊藤　博和</option>
+                    <option>生天目　知弘</option>
+                  </select></div>
+                <div class="fg"><label class="fl">報告日<span class="req">*</span></label>
+                  <input type="date" id="rpt-date" class="fc"></div>
+              </div>
+              <div class="gr2">
+                <div class="fg"><label class="fl">出張先<span class="req">*</span></label>
+                  <input type="text" id="rpt-dest" class="fc" placeholder="例：東京"></div>
+                <div class="fg"><label class="fl">目的</label>
+                  <input type="text" id="rpt-purpose" class="fc" placeholder="例：NWAKARA PR、マンガリッツァPR"></div>
+              </div>
+              <div class="gr2">
+                <div class="fg"><label class="fl">期間</label>
+                  <input type="text" id="rpt-period" class="fc" placeholder="例：2026.5.18〜22"></div>
+                <div class="fg" style="margin-bottom:0;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 訪問記録テーブル -->
+          <div class="card">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+              <span class="card-title">📋 訪問記録</span>
+              <button class="btn btn-secondary btn-sm" onclick="addRptVisit()">＋ 行を追加</button>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="background:var(--surface2);">
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:80px;">日付</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:70px;">時刻</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);">訪問先・面談者</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);">内容</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:36px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="rpt-visit-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 宿泊 -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">🏨 宿泊</span></div>
+            <div class="card-body" id="rpt-hotel-body">
+              <div class="gr2">
+                <div class="fg"><label class="fl">宿泊日程</label>
+                  <input type="text" id="rpt-hotel-date" class="fc" placeholder="例：2026/5/18〜19"></div>
+                <div class="fg"><label class="fl">ホテル名・所在地</label>
+                  <input type="text" id="rpt-hotel-name" class="fc" placeholder="例：ホテルモントレラ・スール大阪"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 成果・所感 -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">💡 成果</span></div>
+            <div class="card-body">
+              <div class="fg" style="margin-bottom:0;">
+                <textarea id="rpt-results" class="fc" rows="5" placeholder="例：・関西では消費者向けとして、まだ牛肉療養ということが再認識できた&#10;・新しい食材を探しているシェフも多い"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">💭 所感</span></div>
+            <div class="card-body">
+              <div class="fg" style="margin-bottom:0;">
+                <textarea id="rpt-impression" class="fc" rows="5" placeholder="例：・関西以外はなかなか足を運べない為、卸業者と絡めるのが得策と感じた&#10;・活性化は厳しいが..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- 別添資料 -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">📎 別添資料</span></div>
+            <div class="card-body">
+              <div class="fg" style="margin-bottom:0;">
+                <input type="text" id="rpt-attach" class="fc" placeholder="例：なし">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右：出力 -->
+        <div>
+          <div class="card" style="border-color:#a2d9b9;position:sticky;top:10px;">
+            <div class="card-header" style="background:#f0faf5;"><span class="card-title">💾 ファイル名・出力</span></div>
+            <div class="card-body">
+              <label class="fl" style="margin-bottom:4px;">ファイル名<span class="req">*</span></label>
+              <input type="text" id="rpt-filename" class="fc" placeholder="例：2026年5月_齋藤_東京出張報告書" style="margin-bottom:12px;">
+              <button class="btn btn-green btn-lg" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="dlReportPDF(event)">🖨️ 報告書 PDF出力</button>
+              <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:4px;">※ 社内様式の画像を共有いただければ書式を合わせます</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px;border-color:#b6d0f5;">
+            <div class="card-header" style="background:#eef4fd;"><span class="card-title">🔗 申請書から引継ぎ</span></div>
+            <div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.9;">
+              出張申請書を作成済みの場合は下のボタンから引継ぎできます（今後実装予定）
+              <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;margin-top:8px;" disabled>📋 申請書から引継ぎ（準備中）</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-start;margin-top:8px;">
+        <button class="btn btn-secondary" onclick="go('home')">← ホームに戻る</button>
+      </div>
+    </div>
+
     <!-- ══ 出張申請書 ══ -->
     <div class="screen" id="screen-trip">
       <div class="screen-label">✈️ 出張申請書</div>
@@ -651,9 +786,10 @@ p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
       <h2 class="ttl" id="home-greeting">こんにちは 👋</h2>
       <p class="desc">十勝発信事業部 / 経費申請システム</p>
       <div class="card">
-        <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
           <button class="btn btn-primary btn-lg" style="justify-content:center;flex-direction:column;height:80px;" onclick="goNewTrip()"><span style="font-size:22px;margin-bottom:4px;">✈️</span><span style="font-size:12px;">出張申請書を作成</span></button>
           <button class="btn btn-accent btn-lg" style="justify-content:center;flex-direction:column;height:80px;" onclick="goNewApplication()"><span style="font-size:22px;margin-bottom:4px;">✏️</span><span style="font-size:12px;">経費申請を入力</span></button>
+          <button class="btn btn-green btn-lg" style="justify-content:center;flex-direction:column;height:80px;" onclick="goNewReport()"><span style="font-size:22px;margin-bottom:4px;">📝</span><span style="font-size:12px;">出張報告書を作成</span></button>
           <button class="btn btn-secondary btn-lg" style="justify-content:center;flex-direction:column;height:80px;" onclick="go('saved');renderSavedList();"><span style="font-size:22px;margin-bottom:4px;">📂</span><span style="font-size:12px;">保存済みを開く</span></button>
         </div>
       </div>
@@ -693,6 +829,7 @@ const SCREENS = {
   login:{id:'screen-login',title:'ログイン',nav:''},
   home:{id:'screen-home',title:'ホーム',nav:'home'},
   trip:{id:'screen-trip',title:'出張申請書',nav:'trip'},
+  reportform:{id:'screen-report-form',title:'出張報告書',nav:'reportform'},
   step1:{id:'screen-step1',title:'経費申請入力 — STEP 1 基本情報',nav:'step1'},
   step2:{id:'screen-step2',title:'経費申請入力 — STEP 2 領収書入力',nav:'step1'},
   step3:{id:'screen-step3',title:'経費申請入力 — STEP 3 確認・合計',nav:'step1'},
@@ -2247,6 +2384,278 @@ function importJSON(file) {
     }
   };
   reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════════
+// 出張報告書 ロジック
+// ══════════════════════════════════════════════
+let rptVisits = []; // [{id, date, time, visitor, content}]
+let rptVisitSeq = 0;
+
+function goNewReport() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('rpt-date').value = today;
+  if (currentUser) document.getElementById('rpt-name').value = currentUser;
+  const fnEl = document.getElementById('rpt-filename');
+  if (fnEl && !fnEl.value && currentUser) {
+    const nm = currentUser.replace(/　/g,'');
+    fnEl.value = `${today.slice(0,4)}年${parseInt(today.slice(5,7))}月_${nm}_出張報告書`;
+  }
+  if (rptVisits.length === 0) addRptVisit();
+  renderRptVisits();
+  go('reportform');
+}
+
+function addRptVisit() {
+  const id = ++rptVisitSeq;
+  rptVisits.push({id, date:'', time:'', visitor:'', content:''});
+  renderRptVisits();
+}
+
+function delRptVisit(id) {
+  rptVisits = rptVisits.filter(v => v.id !== id);
+  renderRptVisits();
+}
+
+function updateRptVisit(id, field, val) {
+  const v = rptVisits.find(v => v.id === id);
+  if (v) v[field] = val;
+}
+
+function renderRptVisits() {
+  const tbody = document.getElementById('rpt-visit-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  rptVisits.forEach(v => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:5px 8px;">
+        <input type="date" class="fc" value="${v.date}" style="font-size:11px;padding:3px 5px;"
+          onchange="updateRptVisit(${v.id},'date',this.value)">
+      </td>
+      <td style="padding:5px 8px;">
+        <input type="text" class="fc" value="${v.time}" placeholder="10:00" style="font-size:11px;padding:3px 5px;"
+          onchange="updateRptVisit(${v.id},'time',this.value)">
+      </td>
+      <td style="padding:5px 8px;">
+        <input type="text" class="fc" value="${v.visitor}" placeholder="例：A社　田中様" style="font-size:12px;padding:4px 6px;"
+          onchange="updateRptVisit(${v.id},'visitor',this.value)">
+      </td>
+      <td style="padding:5px 8px;">
+        <input type="text" class="fc" value="${v.content}" placeholder="内容" style="font-size:12px;padding:4px 6px;"
+          onchange="updateRptVisit(${v.id},'content',this.value)">
+      </td>
+      <td style="padding:5px 8px;text-align:center;">
+        <button class="row-del" onclick="delRptVisit(${v.id})" title="削除">✕</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function dlReportPDF(event) {
+  if (!window.html2canvas || !window.jspdf) {
+    alert('ライブラリが読み込まれていません。\nネット接続を確認してページを再読み込みしてください。'); return;
+  }
+  const name       = document.getElementById('rpt-name').value;
+  const dept       = document.getElementById('rpt-dept').value;
+  const rptDate    = document.getElementById('rpt-date').value;
+  const dest       = document.getElementById('rpt-dest').value;
+  const purpose    = document.getElementById('rpt-purpose').value;
+  const period     = document.getElementById('rpt-period').value;
+  const hotelDate  = document.getElementById('rpt-hotel-date').value;
+  const hotelName  = document.getElementById('rpt-hotel-name').value;
+  const results    = document.getElementById('rpt-results').value;
+  const impression = document.getElementById('rpt-impression').value;
+  const attach     = document.getElementById('rpt-attach').value || 'なし';
+
+  if (!name) { alert('氏名を選択してください'); return; }
+
+  const B  = 'border:1px solid #000;';
+  const TLB = B+'background:#e8e8e8;font-weight:bold;text-align:center;vertical-align:middle;padding:2mm 2mm;font-size:9pt;';
+  const TVL = B+'vertical-align:top;padding:2mm 3mm;font-size:9pt;';
+  const TVC = B+'vertical-align:middle;padding:2mm 3mm;font-size:9pt;';
+
+  // 訪問記録HTML
+  const visitRows = rptVisits.filter(v => v.date||v.visitor||v.content).map(v => `
+    <tr style="min-height:9mm;">
+      <td style="${TVC}text-align:center;width:22mm;">${(v.date||'').replace(/-/g,'/')}</td>
+      <td style="${TVC}text-align:center;width:16mm;">${v.time||''}</td>
+      <td style="${TVC}width:55mm;">${v.visitor||''}</td>
+      <td style="${TVL}">${v.content||''}</td>
+    </tr>`).join('') || `<tr style="height:9mm;"><td style="${TVC}" colspan="4"></td></tr>`;
+
+  // 訪問記録：日付でグループ化（同日の行は日付セルをrowspan）
+  const visitsByDate = [];
+  let lastDate = null;
+  rptVisits.filter(v => v.date||v.visitor||v.content).forEach(v => {
+    if (v.date !== lastDate) {
+      visitsByDate.push({ date: v.date, rows: [v] });
+      lastDate = v.date;
+    } else {
+      visitsByDate[visitsByDate.length-1].rows.push(v);
+    }
+  });
+
+  const visitRowsHtml = visitsByDate.length > 0
+    ? visitsByDate.map(group => {
+        const dateCell = `<td rowspan="${group.rows.length}" style="${TVC}text-align:center;width:20mm;font-weight:bold;border-right:1px solid #000;">
+          ${(group.rows[0].date||'').replace(/^\d{4}-/,'').replace(/-/,'/')}
+        </td>`;
+        return group.rows.map((v, i) => `
+        <tr style="min-height:8mm;">
+          ${i === 0 ? dateCell : ''}
+          <td style="${TVC}text-align:center;width:16mm;">${v.time||''}</td>
+          <td style="${TVC}width:52mm;">${v.visitor||''}</td>
+          <td style="${TVL}">${v.content||''}</td>
+        </tr>`).join('');
+      }).join('')
+    : `<tr style="height:9mm;"><td style="${TVC}width:20mm;"></td><td style="${TVC}width:16mm;"></td><td style="${TVC}width:52mm;"></td><td style="${TVL}"></td></tr>`;
+
+  // 宿泊行HTML（複数行対応）
+  const hotelRows = (hotelDate||hotelName)
+    ? `<tr style="min-height:8mm;background:#f0f0f0;">
+        <td colspan="2" style="${TVC}background:#f0f0f0;text-align:center;font-weight:bold;">宿泊</td>
+        <td colspan="2" style="${TVC}background:#f0f0f0;">${hotelDate}</td>
+        <td colspan="2" style="${TVL}background:#f0f0f0;">${hotelName}</td>
+      </tr>`
+    : '';
+
+  // 報告日
+  const rptDateF = rptDate ? rptDate.replace(/-/g,'.') : '';
+
+  const html = `<div id="report-pdf-root" style="width:190mm;padding:8mm 10mm;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:8.5pt;color:#000;background:#fff;box-sizing:border-box;">
+
+  <!-- 検印欄（右上） -->
+  <div style="display:flex;justify-content:flex-end;margin-bottom:2mm;">
+    <div style="border:1px solid #000;width:22mm;height:14mm;text-align:center;padding-top:2mm;font-size:8pt;font-weight:bold;">検印</div>
+  </div>
+
+  <!-- タイトル -->
+  <div style="text-align:center;font-size:18pt;font-weight:bold;letter-spacing:0.3em;margin-bottom:5mm;">出　張　報　告　書</div>
+
+  <!-- ヘッダー情報 -->
+  <table style="width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:3mm;table-layout:fixed;">
+    <colgroup>
+      <col style="width:18mm"><col style="width:52mm"><col style="width:18mm"><col style="width:54mm"><col style="width:30mm">
+    </colgroup>
+    <tr style="height:9mm;">
+      <td style="${TLB}">出張先</td>
+      <td style="${TVC}">${dest}</td>
+      <td style="${TLB}">報告日</td>
+      <td colspan="2" style="${TVC}">${rptDateF}</td>
+    </tr>
+    <tr style="height:9mm;">
+      <td style="${TLB}">期間</td>
+      <td style="${TVC}">${period}</td>
+      <td style="${TLB}">所属</td>
+      <td colspan="2" style="${TVC}white-space:pre-line;">${dept}</td>
+    </tr>
+    <tr style="height:9mm;">
+      <td style="${TLB}">目的</td>
+      <td style="${TVC}">${purpose}</td>
+      <td style="${TLB}">氏名</td>
+      <td colspan="2" style="${TVC}">${name}</td>
+    </tr>
+  </table>
+
+  <!-- 訪問記録テーブル -->
+  <table style="width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:3mm;table-layout:fixed;">
+    <colgroup>
+      <col style="width:20mm"><col style="width:16mm"><col style="width:52mm"><col>
+    </colgroup>
+    <tr style="background:#e8e8e8;height:8mm;">
+      <td style="${TLB}">日付</td>
+      <td style="${TLB}">時間</td>
+      <td style="${TLB}">訪問先（面談者）</td>
+      <td style="${TLB}">内容</td>
+    </tr>
+    ${visitRowsHtml}
+    ${hotelRows}
+  </table>
+
+  <!-- 成果 -->
+  <table style="width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:3mm;table-layout:fixed;">
+    <tr>
+      <td colspan="4" style="${TLB}text-align:left;padding:2mm 3mm;">【成果】</td>
+    </tr>
+    <tr>
+      <td colspan="4" style="border:1px solid #000;padding:3mm;white-space:pre-wrap;font-size:8.5pt;line-height:1.7;">${results||''}</td>
+    </tr>
+  </table>
+
+  <!-- 所感 -->
+  <table style="width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:3mm;table-layout:fixed;">
+    <tr>
+      <td colspan="4" style="${TLB}text-align:left;padding:2mm 3mm;">【所感】</td>
+    </tr>
+    <tr>
+      <td colspan="4" style="border:1px solid #000;padding:3mm;white-space:pre-wrap;font-size:8.5pt;line-height:1.7;">${impression||''}</td>
+    </tr>
+  </table>
+
+  <!-- 途付資料 -->
+  <table style="width:100%;border-collapse:collapse;font-size:8.5pt;table-layout:fixed;">
+    <tr style="height:8mm;">
+      <td style="${TLB}width:28mm;">【途付資料】</td>
+      <td style="${TVC}">${attach}</td>
+    </tr>
+  </table>
+
+</div>`;
+
+  let container = document.getElementById('report-pdf-render-area');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'report-pdf-render-area';
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;pointer-events:none;visibility:hidden;z-index:-9999;';
+    document.body.appendChild(container);
+  }
+  container.innerHTML = html;
+  container.style.visibility = 'visible';
+
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = '⏳ 生成中...';
+
+  setTimeout(async () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+      const canvas = await html2canvas(document.getElementById('report-pdf-root'), {
+        scale: 3, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794
+      });
+      const imgW = 190;
+      const imgH = canvas.height * imgW / canvas.width;
+      const pageH = 277;
+      if (imgH > pageH) {
+        const pxPerMm = canvas.width / imgW;
+        const pageHpx = pageH * pxPerMm;
+        const totalPages = Math.ceil(canvas.height / pageHpx);
+        for (let i = 0; i < totalPages; i++) {
+          if (i > 0) pdf.addPage();
+          const srcY = i * pageHpx;
+          const srcH = Math.min(pageHpx, canvas.height - srcY);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width; sliceCanvas.height = srcH;
+          const ctx = sliceCanvas.getContext('2d');
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,sliceCanvas.width,sliceCanvas.height);
+          ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+          pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', 10, 10, imgW, srcH/pxPerMm);
+        }
+      } else {
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, imgW, imgH);
+      }
+      const fname = document.getElementById('rpt-filename').value || '出張報告書';
+      pdf.save(`${fname}.pdf`);
+      container.style.visibility = 'hidden';
+      btn.disabled = false; btn.innerHTML = '🖨️ 報告書 PDF出力';
+    } catch(err) {
+      console.error(err);
+      alert('PDF生成エラー: ' + err.message);
+      container.style.visibility = 'hidden';
+      btn.disabled = false; btn.innerHTML = '🖨️ 報告書 PDF出力';
+    }
+  }, 150);
 }
 
 // ══════════════════════════════════════════════
