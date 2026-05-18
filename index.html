@@ -542,10 +542,13 @@ p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
                 <div class="fg"><label class="fl">目的</label>
                   <input type="text" id="rpt-purpose" class="fc" placeholder="例：NWAKARA PR、マンガリッツァPR"></div>
               </div>
-              <div class="gr2">
-                <div class="fg"><label class="fl">期間</label>
-                  <input type="text" id="rpt-period" class="fc" placeholder="例：2026.5.18〜22"></div>
-                <div class="fg" style="margin-bottom:0;"></div>
+              <div class="gr3">
+                <div class="fg"><label class="fl">出発日<span class="req">*</span></label>
+                  <input type="date" id="rpt-start" class="fc" oninput="calcRptPeriod()"></div>
+                <div class="fg"><label class="fl">帰着日<span class="req">*</span></label>
+                  <input type="date" id="rpt-end" class="fc" oninput="calcRptPeriod()"></div>
+                <div class="fg"><label class="fl">期間（自動生成）</label>
+                  <input type="text" id="rpt-period" class="fc" readonly style="background:var(--surface2);color:var(--text2);" placeholder="自動入力"></div>
               </div>
             </div>
           </div>
@@ -576,12 +579,16 @@ p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
           <div class="card">
             <div class="card-header"><span class="card-title">🏨 宿泊</span></div>
             <div class="card-body" id="rpt-hotel-body">
-              <div class="gr2">
-                <div class="fg"><label class="fl">宿泊日程</label>
-                  <input type="text" id="rpt-hotel-date" class="fc" placeholder="例：2026/5/18〜19"></div>
-                <div class="fg"><label class="fl">ホテル名・所在地</label>
-                  <input type="text" id="rpt-hotel-name" class="fc" placeholder="例：ホテルモントレラ・スール大阪"></div>
+              <div class="gr3">
+                <div class="fg"><label class="fl">チェックイン</label>
+                  <input type="date" id="rpt-hotel-checkin" class="fc" oninput="calcHotelPeriod()"></div>
+                <div class="fg"><label class="fl">チェックアウト</label>
+                  <input type="date" id="rpt-hotel-checkout" class="fc" oninput="calcHotelPeriod()"></div>
+                <div class="fg"><label class="fl">宿泊日程（自動）</label>
+                  <input type="text" id="rpt-hotel-date" class="fc" readonly style="background:var(--surface2);color:var(--text2);" placeholder="自動入力"></div>
               </div>
+              <div class="fg" style="margin-bottom:0;"><label class="fl">ホテル名・所在地</label>
+                <input type="text" id="rpt-hotel-name" class="fc" placeholder="例：ホテルモントレラ・スール大阪"></div>
             </div>
           </div>
 
@@ -726,16 +733,29 @@ p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
 
           <!-- 出張費見積もり -->
           <div class="card">
-            <div class="card-header"><span class="card-title">💴 出張費見積もり</span></div>
-            <div class="card-body">
-              <div class="fg">
-                <label class="fl">費用の内訳（フリーテキスト）</label>
-                <textarea id="trip-est-text" class="fc" rows="4" placeholder="例：航空券 ¥22,010＋¥17,990&#10;宿泊 大阪：¥15,300(2泊)、東京：¥30,411(3泊)&#10;移動費 ¥14,720&#10;手土産 ¥5,000(1,000x5件)"></textarea>
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+              <span class="card-title">💴 出張費見積もり</span>
+              <button class="btn btn-secondary btn-sm" onclick="addTripEst()">＋ 項目を追加</button>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="background:var(--surface2);">
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:120px;">費目</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);">内容・メモ</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:110px;">金額（円）</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:36px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="trip-est-body"></tbody>
+              </table>
+              <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--surface2);">
+                <span style="font-size:13px;font-weight:600;color:var(--navy);">合計見積もり</span>
+                <span style="font-size:16px;font-weight:700;font-family:'IBM Plex Mono',monospace;" id="trip-est-total-disp">¥0</span>
               </div>
-              <div class="fg" style="margin-bottom:0;">
-                <label class="fl">合計金額</label>
-                <input type="number" id="trip-est-total-val" class="fc" placeholder="105431">
-              </div>
+              <!-- PDF出力用の隠しフィールド -->
+              <input type="hidden" id="trip-est-text" value="">
+              <input type="hidden" id="trip-est-total-val" value="0">
             </div>
           </div>
 
@@ -1635,15 +1655,10 @@ function dlShuchoPDF() {
 
   const totalPages = sections.length;
   const html = `<div id="shutcho-pdf-root" style="width:190mm;background:#fff;">
-  ${sections.map((s, i) => `
-    <div class="pdf-section" style="width:190mm;padding:10mm 12mm;box-sizing:border-box;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:9pt;color:#000;background:#fff;">
-      ${s.isFirst
-        ? headerHtml
-        : `<div style="font-size:8pt;color:#888;text-align:right;margin-bottom:3mm;">経費明細書　${name}（${periodStr}）　${i+1}/${totalPages}ページ</div>`
-      }
-      ${s.tables.join('')}
-    </div>
-  `).join('')}
+  ${sections.map((s, i) => {
+    const hdr = s.isFirst ? headerHtml : '<div style="font-size:8pt;color:#888;text-align:right;margin-bottom:3mm;">経費明細書\u3000' + name + '\uff08' + periodStr + '\uff09\u3000' + (i+1) + '/' + totalPages + '\u30da\u30fc\u30b8</div>';
+    return '<div class="pdf-section" style="width:190mm;padding:10mm 12mm;box-sizing:border-box;font-family:Meiryo,MS Gothic,Yu Gothic,sans-serif;font-size:9pt;color:#000;background:#fff;">' + hdr + s.tables.join('') + '</div>';
+  }).join('')}
 </div>`;
 
   let container = document.getElementById('shutcho-pdf-render-area');
@@ -2426,16 +2441,240 @@ function importJSON(file) {
 }
 
 // ══════════════════════════════════════════════
+// 横断引継ぎ：申請書 → 経費申請
+// ══════════════════════════════════════════════
+function tripToExpense(id) {
+  const t = savedTrips.find(t => t.id === id);
+  if (!t) return;
+  if (!confirm(`「${t.filename}」の内容を経費申請に引継ぎます。
+現在入力中の内容はリセットされます。よろしいですか？`)) return;
+
+  // フォームをリセットしてから引継ぎ
+  _doReset();
+
+  // 基本情報を引継ぎ
+  document.getElementById('s1-name').value = t.name || '';
+  document.getElementById('s1-apply-date').value = t.start || new Date().toISOString().slice(0,10);
+
+  // 出張情報を引継ぎ
+  if (t.start && t.dest) {
+    document.getElementById('shutcho-toggle').checked = true;
+    toggleShutcho();
+    document.getElementById('s1-dest').value    = t.dest || '';
+    document.getElementById('s1-start').value   = t.start || '';
+    document.getElementById('s1-nights').value  = t.nights || '1';
+    document.getElementById('s1-purpose').value = t.purpose || '';
+    calcEndDate();
+    calcAllowance();
+  }
+
+  // 引継ぎ元を記録
+  editingAppId = null; // 新規として扱う
+  const fnEl = document.getElementById('s3-filename');
+  if (fnEl) fnEl.value = t.filename ? t.filename.replace('申請','精算') : '';
+
+  go('step1');
+
+  // 引継ぎ完了通知
+  setTimeout(() => {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success';
+    alert.style.cssText = 'position:fixed;top:60px;right:16px;z-index:9999;max-width:320px;box-shadow:var(--shadow-md);';
+    alert.innerHTML = `<span class="alert-icon">✅</span><div>「${t.filename}」から引継ぎました。<br>領収書を入力してください。</div>`;
+    document.body.appendChild(alert);
+    setTimeout(() => alert.remove(), 4000);
+  }, 300);
+}
+
+// ══════════════════════════════════════════════
+// 横断引継ぎ：申請書 → 出張報告書
+// ══════════════════════════════════════════════
+function tripToReport(id) {
+  const t = savedTrips.find(t => t.id === id);
+  if (!t) return;
+  if (!confirm(`「${t.filename}」の内容を出張報告書に引継ぎます。よろしいですか？`)) return;
+
+  // 報告書フォームをリセット
+  editingReportId = null;
+  rptVisits = []; rptVisitSeq = 0;
+
+  // 基本情報を引継ぎ
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('rpt-name').value    = t.name || '';
+  document.getElementById('rpt-date').value    = today;
+  document.getElementById('rpt-dest').value    = t.dest || '';
+  document.getElementById('rpt-purpose').value = t.purpose || '';
+
+  // 期間を引継ぎ
+  if (t.start) document.getElementById('rpt-start').value = t.start;
+  if (t.end)   document.getElementById('rpt-end').value   = t.end;
+  calcRptPeriod();
+
+  // 宿泊日程を引継ぎ（出発日〜帰着日前日をデフォルト）
+  if (t.start) {
+    document.getElementById('rpt-hotel-checkin').value  = t.start;
+    // 帰着日の前日をチェックアウトに
+    if (t.end) {
+      const checkout = new Date(t.end);
+      checkout.setDate(checkout.getDate() - 1);
+      document.getElementById('rpt-hotel-checkout').value = checkout.toISOString().slice(0,10);
+    }
+    calcHotelPeriod();
+  }
+
+  // 日程を引継ぎ（申請書の日程から訪問記録の日付を生成）
+  if (t.schedules && t.schedules.length > 0) {
+    t.schedules.forEach(s => {
+      if (s.date) {
+        const vid = ++rptVisitSeq;
+        rptVisits.push({ id: vid, date: s.date, time: '', visitor: '', content: s.content || '' });
+      }
+    });
+  } else if (t.start) {
+    // 日程が未設定の場合は出張期間の各日を自動生成
+    const nights = parseInt(t.nights || '0');
+    for (let i = 0; i <= nights; i++) {
+      const d = new Date(t.start);
+      d.setDate(d.getDate() + i);
+      const vid = ++rptVisitSeq;
+      rptVisits.push({ id: vid, date: d.toISOString().slice(0,10), time: '', visitor: '', content: '' });
+    }
+  }
+
+  // ファイル名を自動生成
+  const fnEl = document.getElementById('rpt-filename');
+  if (fnEl) fnEl.value = t.filename ? t.filename.replace('申請','報告書') : '';
+
+  // その他フィールドをリセット
+  ['rpt-hotel-name','rpt-results','rpt-impression','rpt-attach']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+
+  renderRptVisits();
+  go('reportform');
+
+  // 引継ぎ完了通知
+  setTimeout(() => {
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-success';
+    alert.style.cssText = 'position:fixed;top:60px;right:16px;z-index:9999;max-width:320px;box-shadow:var(--shadow-md);';
+    alert.innerHTML = `<span class="alert-icon">✅</span><div>「${t.filename}」から引継ぎました。<br>訪問記録・成果を入力してください。</div>`;
+    document.body.appendChild(alert);
+    setTimeout(() => alert.remove(), 4000);
+  }, 300);
+}
+
+// ══════════════════════════════════════════════
 // 出張報告書 ロジック
 // ══════════════════════════════════════════════
 let rptVisits = []; // [{id, date, time, visitor, content}]
 let rptVisitSeq = 0;
+
+// 出張報告書：期間を自動生成
+function calcRptPeriod() {
+  const s = document.getElementById('rpt-start').value;
+  const e = document.getElementById('rpt-end').value;
+  const el = document.getElementById('rpt-period');
+  if (!el) return;
+  if (s && e) {
+    const sf = s.replace(/-/g,'/');
+    const ef = e.replace(/-/g,'/');
+    el.value = `${sf}〜${ef}`;
+  } else if (s) {
+    el.value = s.replace(/-/g,'/');
+  }
+}
+
+// 出張報告書：宿泊日程を自動生成
+function calcHotelPeriod() {
+  const ci = document.getElementById('rpt-hotel-checkin').value;
+  const co = document.getElementById('rpt-hotel-checkout').value;
+  const el = document.getElementById('rpt-hotel-date');
+  if (!el) return;
+  if (ci && co) {
+    el.value = `${ci.replace(/-/g,'/')}〜${co.replace(/-/g,'/')}`;
+  } else if (ci) {
+    el.value = ci.replace(/-/g,'/');
+  }
+}
+
+// ══════════════════════════════════════════════
+// 出張申請書：費用見積もり行管理
+// ══════════════════════════════════════════════
+const EST_CATS = ['航空券','宿泊費','移動費（新幹線等）','タクシー代','バス代','会食費','手土産','消耗品','その他'];
+let tripEstItems = []; // [{id, cat, memo, amount}]
+let tripEstSeq = 0;
+
+function addTripEst() {
+  const id = ++tripEstSeq;
+  tripEstItems.push({id, cat: '航空券', memo: '', amount: ''});
+  renderTripEst();
+}
+
+function delTripEst(id) {
+  tripEstItems = tripEstItems.filter(e => e.id !== id);
+  renderTripEst();
+}
+
+function updateTripEst(id, field, val) {
+  const item = tripEstItems.find(e => e.id === id);
+  if (item) item[field] = val;
+  if (field === 'amount') calcTripEstTotal2();
+}
+
+function calcTripEstTotal2() {
+  const total = tripEstItems.reduce((s,e) => s + (Number(e.amount)||0), 0);
+  const dispEl = document.getElementById('trip-est-total-disp');
+  if (dispEl) dispEl.textContent = '¥' + total.toLocaleString();
+  // 隠しフィールドに反映（PDF/Word出力用）
+  const textEl = document.getElementById('trip-est-text');
+  if (textEl) textEl.value = tripEstItems
+    .filter(e => e.cat || e.memo || e.amount)
+    .map(e => `${e.cat}${e.memo ? '　'+e.memo : ''}　¥${Number(e.amount||0).toLocaleString()}`)
+    .join('\\n');
+  const totalEl = document.getElementById('trip-est-total-val');
+  if (totalEl) totalEl.value = total;
+}
+
+function renderTripEst() {
+  const tbody = document.getElementById('trip-est-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  tripEstItems.forEach(e => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:5px 8px;">
+        <select class="fc" style="font-size:12px;padding:4px 6px;"
+          onchange="updateTripEst(${e.id},'cat',this.value)">
+          ${EST_CATS.map(c => `<option ${c===e.cat?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </td>
+      <td style="padding:5px 8px;">
+        <input type="text" class="fc" value="${e.memo}" placeholder="内容・メモ（任意）"
+          style="font-size:12px;padding:4px 6px;"
+          oninput="updateTripEst(${e.id},'memo',this.value)">
+      </td>
+      <td style="padding:5px 8px;">
+        <input type="number" class="fc mono" value="${e.amount}" placeholder="0"
+          style="font-size:12px;padding:4px 6px;text-align:right;"
+          oninput="updateTripEst(${e.id},'amount',this.value)">
+      </td>
+      <td style="padding:5px 8px;text-align:center;">
+        <button class="row-del" onclick="delTripEst(${e.id})" title="削除">✕</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  calcTripEstTotal2();
+}
 
 function goNewReport() {
   editingReportId = null; // 新規作成
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('rpt-date').value = today;
   if (currentUser) document.getElementById('rpt-name').value = currentUser;
+  ['rpt-start','rpt-end','rpt-period','rpt-hotel-checkin','rpt-hotel-checkout','rpt-hotel-date',
+   'rpt-dest','rpt-purpose','rpt-hotel-name','rpt-results','rpt-impression','rpt-attach','rpt-filename']
+  .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   const fnEl = document.getElementById('rpt-filename');
   if (fnEl && !fnEl.value && currentUser) {
     const nm = currentUser.replace(/　/g,'');
@@ -2749,6 +2988,7 @@ function collectTripData() {
     purpose: document.getElementById('trip-purpose').value,
     estText: (document.getElementById('trip-est-text')||{value:''}).value,
     estTotalVal: Number((document.getElementById('trip-est-total-val')||{value:'0'}).value)||0,
+    estItems: JSON.parse(JSON.stringify(tripEstItems)),
     notes: document.getElementById('trip-notes').value,
     schedules: JSON.parse(JSON.stringify(tripSchedules)),
   };
@@ -2790,7 +3030,10 @@ function loadTripForEdit(id) {
   document.getElementById('trip-notes').value    = data.notes || '';
   tripSchedules = JSON.parse(JSON.stringify(data.schedules || []));
   tripScheduleSeq = tripSchedules.reduce((m,s)=>Math.max(m,s.id),0);
+  tripEstItems = JSON.parse(JSON.stringify(data.estItems || []));
+  tripEstSeq = tripEstItems.reduce((m,e)=>Math.max(m,e.id),0);
   renderTripSchedule();
+  renderTripEst();
   go('trip');
 }
 
@@ -2838,8 +3081,10 @@ function renderSavedTrips() {
           <span class="badge badge-trv" style="margin-right:6px;">📍 ${t.dest||'—'}</span>
           <span>${(t.start||'').replace(/-/g,'/')} 〜 ${(t.end||'').replace(/-/g,'/')}</span>
         </div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
           <button class="btn btn-sm" style="background:var(--blue-lt);color:var(--blue);border:1px solid #b6d0f5;" onclick="loadTripForEdit(${t.id})">✏️ 編集・再出力</button>
+          <button class="btn btn-sm btn-accent" onclick="tripToExpense(${t.id})">✏️ → 経費申請へ</button>
+          <button class="btn btn-sm btn-green" onclick="tripToReport(${t.id})">📝 → 報告書へ</button>
           <button class="btn btn-sm" style="background:#fff0f0;color:#c00;border:1px solid #fcc;" onclick="deleteTripData(${t.id})">🗑️ 削除</button>
         </div>
       </div>`;
@@ -2861,6 +3106,10 @@ function collectReportData() {
     dest: document.getElementById('rpt-dest').value,
     purpose: document.getElementById('rpt-purpose').value,
     period: document.getElementById('rpt-period').value,
+    rptStart: document.getElementById('rpt-start').value,
+    rptEnd: document.getElementById('rpt-end').value,
+    hotelCheckin: document.getElementById('rpt-hotel-checkin').value,
+    hotelCheckout: document.getElementById('rpt-hotel-checkout').value,
     hotelDate: document.getElementById('rpt-hotel-date').value,
     hotelName: document.getElementById('rpt-hotel-name').value,
     results: document.getElementById('rpt-results').value,
@@ -2894,8 +3143,12 @@ function loadReportForEdit(id) {
   document.getElementById('rpt-date').value      = data.rptDate || '';
   document.getElementById('rpt-dest').value      = data.dest || '';
   document.getElementById('rpt-purpose').value   = data.purpose || '';
-  document.getElementById('rpt-period').value    = data.period || '';
-  document.getElementById('rpt-hotel-date').value= data.hotelDate || '';
+  document.getElementById('rpt-period').value         = data.period || '';
+  document.getElementById('rpt-start').value          = data.rptStart || '';
+  document.getElementById('rpt-end').value            = data.rptEnd || '';
+  document.getElementById('rpt-hotel-checkin').value  = data.hotelCheckin || '';
+  document.getElementById('rpt-hotel-checkout').value = data.hotelCheckout || '';
+  document.getElementById('rpt-hotel-date').value     = data.hotelDate || '';
   document.getElementById('rpt-hotel-name').value= data.hotelName || '';
   document.getElementById('rpt-results').value   = data.results || '';
   document.getElementById('rpt-impression').value= data.impression || '';
@@ -2962,6 +3215,7 @@ function renderSavedReports() {
 function goNewTrip() {
   // 申請日・氏名を自動セット
   editingTripId = null; // 新規作成
+  tripEstItems = []; tripEstSeq = 0;
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('trip-apply-date').value = today;
   if (currentUser) document.getElementById('trip-name').value = currentUser;
@@ -2973,7 +3227,9 @@ function goNewTrip() {
   }
   // 日程が空なら1行追加
   if (tripSchedules.length === 0) addTripSchedule();
+  if (tripEstItems.length === 0) addTripEst();
   renderTripSchedule();
+  renderTripEst();
   go('trip');
 }
 
@@ -3092,7 +3348,7 @@ function dlTripPDF(event) {
   const schedLines = tripSchedules.map(s => {
     const d = s.date ? s.date.replace(/-/g,'/').replace(/^\d{4}\//, '') : ''; // 月/日のみ
     return `${d}　　${s.content||''}`;
-  }).join('\n');
+  }).join('\\n');
 
   const html = `<div id="trip-pdf-root" style="width:190mm;padding:12mm 14mm;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:9pt;color:#000;background:#fff;box-sizing:border-box;">
 
