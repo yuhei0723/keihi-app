@@ -721,9 +721,10 @@ p.desc{font-size:12px;color:var(--text2);margin-bottom:18px;}
               <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead>
                   <tr style="background:var(--surface2);">
-                    <th style="padding:8px 12px;border-bottom:1px solid var(--border);width:100px;">日付</th>
-                    <th style="padding:8px 12px;border-bottom:1px solid var(--border);">内容</th>
-                    <th style="padding:8px 12px;border-bottom:1px solid var(--border);width:40px;"></th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:120px;">開始日</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:120px;">終了日<span style="font-size:10px;font-weight:400;color:var(--text3);"> (任意)</span></th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);">内容</th>
+                    <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:36px;"></th>
                   </tr>
                 </thead>
                 <tbody id="trip-schedule-body"></tbody>
@@ -2526,8 +2527,19 @@ function tripToReport(id) {
   if (t.schedules && t.schedules.length > 0) {
     t.schedules.forEach(s => {
       if (s.date) {
-        const vid = ++rptVisitSeq;
-        rptVisits.push({ id: vid, date: s.date, time: '', visitor: '', content: s.content || '' });
+        if (s.dateEnd && s.dateEnd !== s.date) {
+          // 期間がある場合：開始日〜終了日の各日に展開
+          const cur = new Date(s.date);
+          const end = new Date(s.dateEnd);
+          while (cur <= end) {
+            const vid = ++rptVisitSeq;
+            rptVisits.push({ id: vid, date: cur.toISOString().slice(0,10), time: '', visitor: '', content: s.content || '' });
+            cur.setDate(cur.getDate() + 1);
+          }
+        } else {
+          const vid = ++rptVisitSeq;
+          rptVisits.push({ id: vid, date: s.date, time: '', visitor: '', content: s.content || '' });
+        }
       }
     });
   } else if (t.start) {
@@ -3253,7 +3265,7 @@ function addTripSchedule() {
     d.setDate(d.getDate() + tripSchedules.length);
     autoDate = d.toISOString().slice(0,10);
   }
-  tripSchedules.push({id, date: autoDate, content: ''});
+  tripSchedules.push({id, date: autoDate, dateEnd: '', content: ''});
   renderTripSchedule();
 }
 
@@ -3275,16 +3287,20 @@ function renderTripSchedule() {
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border)';
     tr.innerHTML = `
-      <td style="padding:6px 10px;">
-        <input type="date" class="fc" value="${s.date}" style="font-size:12px;padding:4px 6px;"
+      <td style="padding:5px 8px;">
+        <input type="date" class="fc" value="${s.date}" style="font-size:11px;padding:3px 5px;"
           onchange="updateTripSchedule(${s.id},'date',this.value)">
       </td>
-      <td style="padding:6px 10px;">
-        <input type="text" class="fc" value="${s.content}" placeholder="例：移動（帯広→千歳→関西空港）、営業"
+      <td style="padding:5px 8px;">
+        <input type="date" class="fc" value="${s.dateEnd||''}" style="font-size:11px;padding:3px 5px;background:var(--surface2);"
+          onchange="updateTripSchedule(${s.id},'dateEnd',this.value)">
+      </td>
+      <td style="padding:5px 8px;">
+        <input type="text" class="fc" value="${s.content}" placeholder="例：移動・営業、レストランA〜C 商談"
           style="font-size:12px;padding:4px 8px;"
           onchange="updateTripSchedule(${s.id},'content',this.value)">
       </td>
-      <td style="padding:6px 10px;text-align:center;">
+      <td style="padding:5px 8px;text-align:center;">
         <button class="row-del" onclick="delTripSchedule(${s.id})" title="削除">✕</button>
       </td>`;
     tbody.appendChild(tr);
@@ -3442,9 +3458,11 @@ function dlTripPDF(event) {
       <td colspan="2" rowspan="${tripSchedules.filter(s=>s.date||s.content).length + 2}" style="${TLB}vertical-align:middle;letter-spacing:3px;">日　程</td>
     </tr>
     ${tripSchedules.filter(s=>s.date||s.content).map(s => {
-      const d = s.date ? s.date.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
+      const d1 = s.date ? s.date.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
+      const d2 = s.dateEnd ? s.dateEnd.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
+      const dateStr = d2 && d2 !== d1 ? d1 + '〜' + d2 : d1;
       return `<tr>
-        <td style="border:1px solid #aaa;padding:1.5mm 3mm;font-size:9pt;text-align:center;width:18mm;vertical-align:middle;">${d}</td>
+        <td style="border:1px solid #aaa;padding:1.5mm 2mm;font-size:8.5pt;text-align:center;width:22mm;vertical-align:middle;white-space:nowrap;">${dateStr}</td>
         <td colspan="2" style="border:1px solid #aaa;padding:1.5mm 3mm;font-size:9pt;vertical-align:middle;">${s.content||''}</td>
       </tr>`;
     }).join('')}
