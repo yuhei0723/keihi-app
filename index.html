@@ -2630,7 +2630,7 @@ function calcTripEstTotal2() {
   if (textEl) textEl.value = tripEstItems
     .filter(e => e.cat || e.memo || e.amount)
     .map(e => `${e.cat}${e.memo ? '　'+e.memo : ''}　¥${Number(e.amount||0).toLocaleString()}`)
-    .join('\\n');
+    .join('\n');
   const totalEl = document.getElementById('trip-est-total-val');
   if (totalEl) totalEl.value = total;
 }
@@ -3344,11 +3344,14 @@ function dlTripPDF(event) {
   const estText = (document.getElementById('trip-est-text')||{value:''}).value;
   const estTotalVal = Number((document.getElementById('trip-est-total-val')||{value:'0'}).value)||0;
 
-  // 日程：各行を「日付　内容」形式で1つのフリーテキスト領域に
-  const schedLines = tripSchedules.map(s => {
-    const d = s.date ? s.date.replace(/-/g,'/').replace(/^\d{4}\//, '') : ''; // 月/日のみ
-    return `${d}　　${s.content||''}`;
-  }).join('\\n');
+  // 日程：各行をテーブル行として生成（1項目1行）
+  const schedRows = tripSchedules.filter(s => s.date||s.content).map(s => {
+    const d = s.date ? s.date.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
+    return `<tr style="height:8mm;">
+      <td style="border-top:1px solid #ddd;padding:2mm 3mm;font-size:9pt;width:18mm;text-align:center;vertical-align:middle;">${d}</td>
+      <td style="border-top:1px solid #ddd;padding:2mm 3mm;font-size:9pt;vertical-align:middle;">${s.content||''}</td>
+    </tr>`;
+  }).join('');
 
   const html = `<div id="trip-pdf-root" style="width:190mm;padding:12mm 14mm;font-family:'Meiryo','MS Gothic','Yu Gothic',sans-serif;font-size:9pt;color:#000;background:#fff;box-sizing:border-box;">
 
@@ -3414,28 +3417,33 @@ function dlTripPDF(event) {
       <td colspan="3" style="${TVL}white-space:pre-wrap;padding:3mm;min-height:32mm;">${purpose||''}</td>
     </tr>
 
-    <!-- 出張費見積もり（フリーテキスト＋合計） -->
+    <!-- 出張費見積もり（1項目1行） -->
     <tr>
-      <td colspan="2" style="${TLB}vertical-align:middle;">出張費<br>見積り</td>
-      <td colspan="3" style="border:none;">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="${TVL}white-space:pre-wrap;padding:3mm;">${estText}</td>
-          </tr>
-          <tr style="height:9mm;">
-            <td style="${B}display:flex;justify-content:flex-end;align-items:center;gap:0;">
-              <span style="background:#e8e8e8;font-weight:bold;padding:2mm 4mm;border-right:1px solid #000;">合計</span>
-              <span style="padding:2mm 4mm;font-weight:bold;font-size:10pt;min-width:40mm;text-align:right;">¥${estTotalVal.toLocaleString()}円</span>
-            </td>
-          </tr>
-        </table>
+      <td colspan="2" rowspan="${tripEstItems.filter(e=>e.cat||e.memo||e.amount).length + 2}" style="${TLB}vertical-align:middle;">出張費<br>見積り</td>
+    </tr>
+    ${tripEstItems.filter(e => e.cat||e.memo||e.amount).map(e => `
+    <tr style="height:8mm;">
+      <td colspan="3" style="border-top:1px solid #ddd;padding:2mm 3mm;font-size:9pt;vertical-align:middle;">
+        <span style="font-weight:600;">${e.cat}</span>${e.memo ? '　'+e.memo : ''}
+        <span style="float:right;font-family:monospace;">¥${Number(e.amount||0).toLocaleString()}</span>
+      </td>
+    </tr>`).join('')}
+    <tr style="height:9mm;">
+      <td colspan="3" style="${B}">
+        <div style="display:flex;justify-content:flex-end;align-items:center;">
+          <span style="background:#e8e8e8;font-weight:bold;padding:2mm 4mm;border-right:1px solid #000;font-size:9pt;">合計</span>
+          <span style="padding:2mm 6mm;font-weight:bold;font-size:10pt;">¥${estTotalVal.toLocaleString()}円</span>
+        </div>
       </td>
     </tr>
 
-    <!-- 日程（フリーテキスト＋末尾「以上」） -->
+    <!-- 日程（1項目1行テーブル） -->
     <tr>
-      <td colspan="2" style="${TLB}vertical-align:middle;letter-spacing:3px;">日　程</td>
-      <td colspan="3" style="${TVL}padding:3mm;white-space:pre-wrap;min-height:45mm;">${schedLines}<div style="text-align:right;margin-top:2mm;">以上</div></td>
+      <td colspan="2" rowspan="${tripSchedules.filter(s=>s.date||s.content).length + 2}" style="${TLB}vertical-align:middle;letter-spacing:3px;">日　程</td>
+    </tr>
+    ${schedRows}
+    <tr style="height:6mm;">
+      <td colspan="3" style="border-top:1px solid #ddd;text-align:right;padding:2mm 3mm;font-size:9pt;">以上</td>
     </tr>
 
     <!-- 別添資料 -->
