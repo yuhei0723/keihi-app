@@ -3453,21 +3453,24 @@ function dlTripPDF(event) {
       </td>
     </tr>
 
-    <!-- 日程（1行1項目・コンパクト） -->
+    <!-- 日程（ネストテーブルで比率を制御） -->
     <tr>
-      <td colspan="2" rowspan="${tripSchedules.filter(s=>s.date||s.content).length + 2}" style="${TLB}vertical-align:middle;letter-spacing:3px;">日　程</td>
-    </tr>
-    ${tripSchedules.filter(s=>s.date||s.content).map(s => {
-      const d1 = s.date ? s.date.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
-      const d2 = s.dateEnd ? s.dateEnd.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
-      const dateStr = d2 && d2 !== d1 ? d1 + '〜' + d2 : d1;
-      return `<tr>
-        <td style="border:1px solid #aaa;padding:1.5mm 2mm;font-size:8.5pt;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;">${dateStr}</td>
-        <td colspan="3" style="border:1px solid #aaa;padding:1.5mm 3mm;font-size:9pt;vertical-align:middle;">${s.content||''}</td>
-      </tr>`;
-    }).join('')}
-    <tr style="height:6mm;">
-      <td colspan="4" style="${B}text-align:right;padding:1.5mm 3mm;font-size:9pt;">以上</td>
+      <td colspan="2" style="${TLB}vertical-align:middle;letter-spacing:3px;">日　程</td>
+      <td colspan="3" style="border:1px solid #000;padding:0;vertical-align:top;">
+        <table style="width:100%;border-collapse:collapse;font-size:9pt;table-layout:fixed;">
+          <colgroup><col style="width:20%"><col style="width:80%"></colgroup>
+          ${tripSchedules.filter(s=>s.date||s.content).map(s => {
+            const d1 = s.date ? s.date.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
+            const d2 = s.dateEnd ? s.dateEnd.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
+            const dateStr = d2 && d2 !== d1 ? d1 + '〜' + d2 : d1;
+            return `<tr style="border-bottom:1px solid #ddd;">
+              <td style="padding:1.5mm 2mm;font-size:8.5pt;text-align:center;vertical-align:middle;border-right:1px solid #ddd;white-space:nowrap;">${dateStr}</td>
+              <td style="padding:1.5mm 3mm;font-size:9pt;vertical-align:middle;">${s.content||''}</td>
+            </tr>`;
+          }).join('')}
+          <tr><td colspan="2" style="text-align:right;padding:1.5mm 3mm;font-size:9pt;height:6mm;">以上</td></tr>
+        </table>
+      </td>
     </tr>
 
     <!-- 別添資料 -->
