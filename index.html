@@ -3387,7 +3387,7 @@ function dlTripPDF(event) {
 
   <table style="width:100%;border-collapse:collapse;font-size:9pt;table-layout:fixed;">
     <colgroup>
-      <col style="width:22mm"><col style="width:20mm"><col style="width:80mm"><col style="width:20mm"><col style="width:30mm">
+      <col style="width:22mm"><col style="width:15mm"><col style="width:85mm"><col style="width:20mm"><col style="width:30mm">
     </colgroup>
 
     <!-- 出張者 -->
@@ -3462,12 +3462,12 @@ function dlTripPDF(event) {
       const d2 = s.dateEnd ? s.dateEnd.replace(/-/g,'/').replace(/^\d{4}\//, '') : '';
       const dateStr = d2 && d2 !== d1 ? d1 + '〜' + d2 : d1;
       return `<tr>
-        <td style="border:1px solid #aaa;padding:1.5mm 2mm;font-size:8.5pt;text-align:center;width:22mm;vertical-align:middle;white-space:nowrap;">${dateStr}</td>
-        <td colspan="2" style="border:1px solid #aaa;padding:1.5mm 3mm;font-size:9pt;vertical-align:middle;">${s.content||''}</td>
+        <td style="border:1px solid #aaa;padding:1.5mm 2mm;font-size:8.5pt;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;">${dateStr}</td>
+        <td colspan="3" style="border:1px solid #aaa;padding:1.5mm 3mm;font-size:9pt;vertical-align:middle;">${s.content||''}</td>
       </tr>`;
     }).join('')}
     <tr style="height:6mm;">
-      <td colspan="3" style="${B}text-align:right;padding:1.5mm 3mm;font-size:9pt;">以上</td>
+      <td colspan="4" style="${B}text-align:right;padding:1.5mm 3mm;font-size:9pt;">以上</td>
     </tr>
 
     <!-- 別添資料 -->
